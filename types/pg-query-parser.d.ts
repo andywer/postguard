@@ -2,7 +2,7 @@ declare module "pg-query-parser" {
   export type QueryNodeType = string
 
   export interface QueryNode<NodeType extends QueryNodeType> {
-    [key: NodeType]: any
+    [key: string]: any
   }
 
   interface PgInteger {

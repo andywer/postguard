@@ -3,12 +3,10 @@
     "allowSyntheticDefaultImports": true,
     "downlevelIteration": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
     "target": "es2017",
     "module": "commonjs",
     "lib": ["es2015"],
     "outDir": "dist",
-    "declaration": true,
     "baseUrl": ".",
     "paths": {
       "*": ["./types/*"]
