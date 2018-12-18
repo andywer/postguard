@@ -1,0 +1,34 @@
+{
+  "name": "pg-lint",
+  "version": "0.0.0",
+  "description": "Lint Postgres SQL queries in JS / TS source code against schema definitions.",
+  "bin": "dist/cli.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "author": "Andy Wermke <andy@dev.next-step-software.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@babel/code-frame": "^7.0.0",
+    "@babel/core": "^7.2.2",
+    "@babel/parser": "^7.2.2",
+    "@babel/plugin-transform-typescript": "^7.2.0",
+    "@babel/traverse": "^7.2.2",
+    "debug": "^4.1.0",
+    "log-symbols": "^2.2.0",
+    "meow": "^5.0.0",
+    "pg-query-parser": "^0.2.3"
+  },
+  "devDependencies": {
+    "@types/babel__code-frame": "^7.0.0",
+    "@types/babel__core": "^7.0.4",
+    "@types/babel__traverse": "^7.0.4",
+    "@types/debug": "0.0.31",
+    "@types/log-symbols": "^2.0.0",
+    "@types/meow": "^5.0.0",
+    "@types/node": "^10.12.15",
+    "ts-node": "^7.0.1",
+    "tslint": "^5.11.0",
+    "typescript": "^3.2.2"
+  }
+}
