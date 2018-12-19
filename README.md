@@ -11,6 +11,18 @@ Built on the [Babel](https://babeljs.io/) stack. Uses [`pg-query-parser`](npmjs.
 pg-lint src/models/*
 ```
 
+You can use `--watch` to watch for file changes:
+
+```sh
+pg-lint --watch src/models/*
+```
+
+We can use npm's [npx tool](https://blog.npmjs.org/post/162869356040/introducing-npx-an-npm-package-runner) to run the locally installed puppet-run program seamlessly:
+
+```sh
+npx pg-lint src/models/*
+```
+
 
 ## Example
 
@@ -65,6 +77,18 @@ $ pg-lint src/models/user.js
 ## Debugging
 
 Set the environment variable `DEBUG` to `pg-lint:*` to enable debug logging. You can also narrow debug logging down by setting `DEBUG` to `pg-lint:table` or `pg-lint:query`, for instance.
+
+
+## Command line options
+
+```
+Usage
+  $ pg-lint ./path/to/source/*.ts
+
+Options
+  --help        Print this help
+  -w, --watch   Watch files and re-evaluate on change
+```
 
 
 ## License
