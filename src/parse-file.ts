@@ -37,7 +37,7 @@ export function parseFile (filePath: string) {
       if (!importSpecifier) return
 
       if (importSpecifier.node.name === "defineTable") {
-        tableSchemas.push(parseTableDefinition(path))
+        tableSchemas.push(parseTableDefinition(path, filePath))
       }
     },
     TaggedTemplateExpression (path) {

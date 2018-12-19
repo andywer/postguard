@@ -3,6 +3,7 @@
 import * as chokidar from "chokidar"
 import * as logSymbols from "log-symbols"
 import meow from "meow"
+import * as path from "path"
 import { isAugmentedError } from "./errors"
 import { parseFile, Query, TableSchema } from "./parse-file"
 import { assertNoBrokenColumnRefs, assertNoBrokenTableRefs } from "./validation"
@@ -29,9 +30,26 @@ if (cli.input.length === 0) {
 
 const watchMode = Boolean(cli.flags.watch || cli.flags.w)
 
-function run (sourceFilePaths: string[]) {
+function checkSchemasForDuplicates (allTableSchemas: TableSchema[]) {
+  for (const schema of allTableSchemas) {
+    const schemasMatchingThatName = allTableSchemas.filter(someSchema => someSchema.tableName === schema.tableName)
+    if (schemasMatchingThatName.length > 1) {
+      throw new Error(
+        `Table ${schema.tableName} has been defined more than once:\n` +
+        schemasMatchingThatName.map(duplicate => {
+          const lineRef = duplicate.loc ? `:${duplicate.loc.start.line}` : ``
+          return `  - ${duplicate.filePath}${lineRef}`
+        }).join("\n")
+      )
+    }
+  }
+}
+
+function run (sourceFilePaths: string[], moreSchemas: TableSchema[] = []) {
   let allQueries: Query[] = []
-  let allTableSchemas: TableSchema[] = []
+  let allTableSchemas: TableSchema[] = [...moreSchemas]
+
+  sourceFilePaths = sourceFilePaths.map(filePath => path.relative(process.cwd(), filePath))
 
   try {
     for (const filePath of sourceFilePaths) {
@@ -41,6 +59,8 @@ function run (sourceFilePaths: string[]) {
       allQueries = [...allQueries, ...queries]
       allTableSchemas = [...allTableSchemas, ...tableSchemas]
     }
+
+    checkSchemasForDuplicates(allTableSchemas)
 
     for (const query of allQueries) {
       assertNoBrokenTableRefs(query, allTableSchemas)
@@ -60,15 +80,23 @@ function run (sourceFilePaths: string[]) {
       process.exit(1)
     }
   }
+
+  return {
+    queries: allQueries,
+    schemas: allTableSchemas
+  }
 }
 
-run(cli.input)
+let { schemas } = run(cli.input)
 
 if (watchMode) {
   console.log(`\nWatching file changes... Press CTRL + C to cancel.\n`)
 
   chokidar.watch(cli.input).on("all", (event, filePath) => {
-    run([ filePath ])
+    const schemasInOtherFiles = schemas.filter(schema => schema.filePath !== filePath)
+    const lastRunResult = run([ filePath ], schemasInOtherFiles)
+
+    schemas = lastRunResult.schemas
     console.log("")
   })
 }
