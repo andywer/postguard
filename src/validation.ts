@@ -37,7 +37,7 @@ function assertIntactUnqualifiedColumnRef (columnRef: UnqualifiedColumnReference
   }
   if (inScopeSchemasContainingColumn.length > 1) {
     throw new Error(
-      `Unqualified column reference "${columnRef.columnName}" matches more than one referenced table:` +
+      `Unqualified column reference "${columnRef.columnName}" matches more than one referenced table: ` +
       inScopeSchemasContainingColumn.map(schema => schema.tableName).join(", ")
     )
   }

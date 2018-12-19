@@ -5,6 +5,7 @@ import * as types from "@babel/types"
 export interface TableSchema {
   tableName: string,
   columnNames: string[],
+  filePath: string,
   loc: types.SourceLocation | null
 }
 
@@ -31,7 +32,7 @@ function parseTableColumnsDefinition (path: NodePath<types.ObjectExpression>) {
   }
 }
 
-export function parseTableDefinition (path: NodePath<types.CallExpression>): TableSchema {
+export function parseTableDefinition (path: NodePath<types.CallExpression>, filePath: string): TableSchema {
   const args = path.get("arguments")
   if (args.length !== 2) throw path.buildCodeFrameError("Expected two arguments on defineTable() call.")
 
@@ -45,6 +46,7 @@ export function parseTableDefinition (path: NodePath<types.CallExpression>): Tab
   return {
     tableName,
     columnNames,
+    filePath,
     loc: path.node.loc
   }
 }
