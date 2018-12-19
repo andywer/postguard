@@ -54,11 +54,17 @@ $ pg-lint src/models/user.js
 ✔ Validated 1 queries against 1 table schemas. All fine!
 ```
 
+
 ## Validations
 
 - Checks SQL queries for syntax errors
 - Checks that the referenced tables exist
 - Checks that the referenced columns exist on the referenced tables
+
+
+## Debugging
+
+Set the environment variable `DEBUG` to `pg-lint:*` to enable debug logging. You can also narrow debug logging down by setting `DEBUG` to `pg-lint:table` or `pg-lint:query`, for instance.
 
 
 ## License
