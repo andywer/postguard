@@ -48,23 +48,19 @@ export function parseFile (filePath: string) {
       const callee = path.get("callee")
       if (!callee.isIdentifier()) return
 
-      const importSpecifier = getReferencedNamedImport(callee)
+      const importSpecifier = getReferencedNamedImport(callee, "defineTable")
       if (!importSpecifier) return
 
-      if (importSpecifier.node.name === "defineTable") {
-        tableSchemas.push(parseTableDefinition(path, filePath))
-      }
+      tableSchemas.push(parseTableDefinition(path, filePath))
     },
     TaggedTemplateExpression (path) {
       const tag = path.get("tag")
       if (!tag.isIdentifier()) return
 
-      const importSpecifier = getReferencedNamedImport(tag)
+      const importSpecifier = getReferencedNamedImport(tag, "sql")
       if (!importSpecifier) return
 
-      if (importSpecifier.node.name === "sql") {
-        queries.push(parseQuery(path.get("quasi"), filePath, tsProgram, tsSourceFile))
-      }
+      queries.push(parseQuery(path.get("quasi"), filePath, tsProgram, tsSourceFile))
     }
   })
 

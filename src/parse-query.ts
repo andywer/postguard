@@ -65,8 +65,8 @@ function isSpreadInsertExpression (expression: NodePath<any>): expression is Nod
   const callee = expression.get("callee")
   if (!callee.isIdentifier()) return false
 
-  const importSpecifier = getReferencedNamedImport(callee)
-  return Boolean(importSpecifier && importSpecifier.node.name === "spreadInsert")
+  const importSpecifier = getReferencedNamedImport(callee, "spreadInsert")
+  return Boolean(importSpecifier)
 }
 
 function resolveSpreadArgumentType (expression: NodePath<types.CallExpression>, tsProgram: ts.Program, tsSource: ts.SourceFile) {
