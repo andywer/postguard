@@ -6,13 +6,13 @@ function isRequireCall (path: NodePath<types.CallExpression>) {
   return callee.isIdentifier() && callee.node.name === "require" && !callee.scope.getBinding("require")
 }
 
-export function getReferencedNamedImport (identifier: NodePath<types.Identifier>): NodePath<types.Identifier> | undefined {
+export function getReferencedNamedImport (identifier: NodePath<types.Identifier>, expectedOriginalName: string): NodePath<types.Identifier> | undefined {
   const binding = identifier.scope.getBinding(identifier.node.name)
   if (!binding) return
 
   const bindingPath = binding.path
 
-  if (bindingPath.isImportSpecifier()) {
+  if (bindingPath.isImportSpecifier() && bindingPath.get("imported").node.name === expectedOriginalName) {
     // import { sql } from "..."
     return bindingPath.get("imported")
   }
@@ -27,7 +27,7 @@ export function getReferencedNamedImport (identifier: NodePath<types.Identifier>
         if (property.isObjectProperty() &&
             !Array.isArray(property.get("key")) &&
             (property.get("key") as NodePath<types.Node>).isIdentifier() &&
-            (property.get("key") as NodePath<types.Identifier>).node.name === binding.identifier.name
+            (property.get("key") as NodePath<types.Identifier>).node.name === expectedOriginalName
         ) {
           return (property.get("key") as NodePath<types.Identifier>)
         }
@@ -42,9 +42,9 @@ export function getReferencedNamedImport (identifier: NodePath<types.Identifier>
     const initProp = init.get("property")
 
     if (id.node.name === binding.identifier.name && initObject.isCallExpression() && isRequireCall(initObject)) {
-      if (!Array.isArray(initProp) && initProp.isIdentifier() && initProp.node.name === binding.identifier.name) {
+      if (!Array.isArray(initProp) && initProp.isIdentifier() && initProp.node.name === expectedOriginalName) {
         return id
-      } else if (!Array.isArray(initProp) && initProp.isStringLiteral() && initProp.node.value === binding.identifier.name) {
+      } else if (!Array.isArray(initProp) && initProp.isStringLiteral() && initProp.node.value === expectedOriginalName) {
         return id
       }
     }
