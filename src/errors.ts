@@ -12,6 +12,10 @@ export interface ValidationError extends Error {
   path: QueryNodePath<any>
 }
 
+export function fail (message: string): never {
+  throw new Error(message)
+}
+
 function formatSourceLink (filePath: string, location?: SourceLocation | null): string {
   if (location) {
     return `${filePath}:${location.start.line}`

@@ -30,8 +30,10 @@ function assertIntactUnqualifiedColumnRef (columnRef: UnqualifiedColumnReference
   const inScopeSchemasContainingColumn = tablesInScopeSchemas.filter(schema => schema.columnNames.indexOf(columnRef.columnName) > -1)
 
   if (inScopeSchemasContainingColumn.length === 0) {
+    const tablesInScopeNames = tablesInScopeSchemas.map(schema => `"${schema.tableName}"`)
     throw new Error(
-      `No table in the query's scope has a column "${columnRef.columnName}": ` +
+      `No table in the query's scope has a column "${columnRef.columnName}".\n` +
+      `Tables in scope: ${tablesInScopeNames.length > 0 ? tablesInScopeNames.join(", ") : "(none)"}` +
       inScopeSchemasContainingColumn.map(schema => schema.tableName).join(", ")
     )
   }

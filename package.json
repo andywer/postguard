@@ -18,7 +18,8 @@
     "debug": "^4.1.0",
     "log-symbols": "^2.2.0",
     "meow": "^5.0.0",
-    "pg-query-parser": "^0.2.3"
+    "pg-query-parser": "^0.2.3",
+    "typescript": "^3.2.2"
   },
   "devDependencies": {
     "@types/babel__code-frame": "^7.0.0",
@@ -34,8 +35,7 @@
     "@types/pg": "^7.4.11",
     "pg": "^7.7.1",
     "ts-node": "^7.0.1",
-    "tslint": "^5.11.0",
-    "typescript": "^3.2.2"
+    "tslint": "^5.11.0"
   },
   "files": [
     "dist/**/*"
