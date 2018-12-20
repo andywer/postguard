@@ -2,8 +2,10 @@ import { parse, traverse } from "@babel/core"
 import createDebugLogger from "debug"
 import * as fs from "fs"
 import { getReferencedNamedImport } from "./babel-parser-utils"
+import { fail } from "./errors"
 import { parseQuery, Query } from "./parse-query"
 import { parseTableDefinition, TableSchema } from "./parse-table-definition"
+import { compileFiles } from "./typescript/file"
 
 export {
   Query,
@@ -13,6 +15,14 @@ export {
 const debugFile = createDebugLogger("pg-lint:file")
 const debugQueries = createDebugLogger("pg-lint:query")
 const debugTables = createDebugLogger("pg-lint:table")
+
+function compileTypeScript (filePath: string) {
+  try {
+    return compileFiles([filePath])
+  } catch (error) {
+    console.error(`Compiling TypeScript source file ${filePath} failed: ${error.message}`)
+  }
+}
 
 export function parseFile (filePath: string) {
   debugFile(`Start parsing file ${filePath}`)
@@ -27,6 +37,11 @@ export function parseFile (filePath: string) {
     plugins: isTypescript ? ["@babel/plugin-transform-typescript"] : [],
     sourceType: "unambiguous"
   })
+
+  const tsProgram = filePath.endsWith(".ts") ? compileTypeScript(filePath) : undefined
+  const tsSourceFile = tsProgram
+    ? tsProgram.getSourceFile(filePath) || fail(`Cannot retrieve source file ${filePath} from compiled TypeScript sources.`)
+    : undefined
 
   traverse(ast as any, {
     CallExpression (path) {
@@ -48,7 +63,7 @@ export function parseFile (filePath: string) {
       if (!importSpecifier) return
 
       if (importSpecifier.node.name === "sql") {
-        queries.push(parseQuery(path.get("quasi"), filePath))
+        queries.push(parseQuery(path.get("quasi"), filePath, tsProgram, tsSourceFile))
       }
     }
   })
