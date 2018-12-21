@@ -1,8 +1,16 @@
-# pg-lint
+<h1 align="center">pg-lint</h1>
 
-Static source code analyzer validating SQL queries in JavaScript and TypeScript code.
+<p align="center">
+Static analyzer validating SQL queries in JavaScript and TypeScript code.
+</p>
 
-Built on the [Babel](https://babeljs.io/) stack. Uses [`pg-query-parser`](npmjs.com/package/pg-query-parser), which is built on `libpg_query`, the real-deal Postgres query parser implementation.
+<br />
+
+Built on the [Babel](https://babeljs.io/) and [TypeScript](http://www.typescriptlang.org/) stack. Uses [`pg-query-parser`](npmjs.com/package/pg-query-parser), which is built on `libpg_query`, the real-deal Postgres query parser implementation.
+
+Use it with [sqldb](https://github.com/andywer/sqldb) template strings. Its tagged template strings some sugar to write short, explicit SQL queries for even complex tables.
+
+When validating TypeScript code, pg-lint will fire up the TypeScript compiler to infer and validate the types of sqldb's `spread*()` arguments. So you have **SQL queries that are type-checked against your code** 😱😱😱
 
 
 ## Usage
