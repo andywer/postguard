@@ -141,10 +141,7 @@ Finally, statically typed string templates! 🤓
 - Checks SQL queries for syntax errors
 - Checks that the referenced tables exist
 - Checks that the referenced columns exist on the referenced tables
-
-## Debugging
-
-Set the environment variable `DEBUG` to `pg-lint:*` to enable debug logging. You can also narrow debug logging down by setting `DEBUG` to `pg-lint:table` or `pg-lint:query`, for instance.
+- Checks that each table's schema is only defined once
 
 ## Command line options
 
@@ -156,6 +153,14 @@ Options
   --help        Print this help
   -w, --watch   Watch files and re-evaluate on change
 ```
+
+## Debugging
+
+Set the environment variable `DEBUG` to `pg-lint:*` to enable debug logging. You can also narrow debug logging down by setting `DEBUG` to `pg-lint:table` or `pg-lint:query`, for instance.
+
+## Questions? Feedback?
+
+Feedback is welcome, as always. Feel free to comment what's on your mind 👉 [here](https://github.com/andywer/pg-lint/issues/1).
 
 ## License
 
