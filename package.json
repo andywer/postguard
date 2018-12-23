@@ -4,7 +4,8 @@
   "description": "Lint Postgres SQL queries in JS / TS source code against schema definitions.",
   "bin": "dist/cli.js",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "prettier --list-different 'src/**' && tslint --project ."
   },
   "author": "Andy Wermke <andy@dev.next-step-software.com>",
   "license": "MIT",
@@ -14,6 +15,7 @@
     "@babel/parser": "^7.2.2",
     "@babel/plugin-transform-typescript": "^7.2.0",
     "@babel/traverse": "^7.2.2",
+    "@babel/types": "^7.2.2",
     "chalk": "^2.4.1",
     "chokidar": "^2.0.4",
     "debug": "^4.1.0",
@@ -35,11 +37,24 @@
     "@types/meow": "^5.0.0",
     "@types/node": "^10.12.15",
     "@types/pg": "^7.4.11",
+    "husky": "^1.2.1",
     "pg": "^7.7.1",
+    "prettier": "1.15.3",
+    "pretty-quick": "^1.8.0",
     "ts-node": "^7.0.1",
-    "tslint": "^5.11.0"
+    "tslint": "^5.11.0",
+    "tslint-config-prettier": "^1.17.0"
   },
   "files": [
     "dist/**/*"
-  ]
+  ],
+  "husky": {
+    "hooks": {
+      "pre-commit": "pretty-quick --staged"
+    }
+  },
+  "prettier": {
+    "semi": false,
+    "printWidth": 100
+  }
 }

@@ -1,6 +1,6 @@
 import ts from "typescript"
 
-export function compileFiles (filePaths: string[]) {
+export function compileFiles(filePaths: string[]) {
   return ts.createProgram({
     rootNames: filePaths,
     options: {
@@ -11,7 +11,11 @@ export function compileFiles (filePaths: string[]) {
   })
 }
 
-export function getNodeAtPosition (nodeToSearch: ts.Node, startPosition: number, endPosition: number): ts.Node | null {
+export function getNodeAtPosition(
+  nodeToSearch: ts.Node,
+  startPosition: number,
+  endPosition: number
+): ts.Node | null {
   let resultNode: ts.Node | null = null
 
   ts.forEachChild(nodeToSearch, node => {

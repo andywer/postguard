@@ -9,37 +9,40 @@ import {
   createQueryNodePath,
   findParentQueryStatement,
   getNodeType,
-  traverseQuery,
   traverseSubTree,
+  traverseQuery,
   QueryNodePath
 } from "./query-parser-utils"
-import {
-  ColumnReference,
-  Query,
-  QuerySourceMapSpan,
-  SourceFile,
-  TableReference
-} from "./types"
-import { getProperties } from "./typescript/objectish"
+import { ColumnReference, Query, QuerySourceMapSpan, SourceFile, TableReference } from "./types"
 import { getNodeAtPosition } from "./typescript/file"
+import { getProperties } from "./typescript/objectish"
 
 interface ExpressionSpreadTypes {
   [paramID: number]: ReturnType<typeof getProperties> | null
 }
 
-const isColumnRef = (node: QueryParser.QueryNode<any>): node is QueryParser.ColumnRef => "ColumnRef" in node
-const isParamRef = (node: QueryParser.QueryNode<any>): node is QueryParser.ParamRef => "ParamRef" in node
-const isPgString = (node: QueryParser.QueryNode<any>): node is QueryParser.PgString => "String" in node
-const isRelationRef = (node: QueryParser.QueryNode<any>): node is QueryParser.RelationRef => "RangeVar" in node
+const isColumnRef = (node: QueryParser.QueryNode<any>): node is QueryParser.ColumnRef =>
+  "ColumnRef" in node
+const isParamRef = (node: QueryParser.QueryNode<any>): node is QueryParser.ParamRef =>
+  "ParamRef" in node
+const isPgString = (node: QueryParser.QueryNode<any>): node is QueryParser.PgString =>
+  "String" in node
+const isRelationRef = (node: QueryParser.QueryNode<any>): node is QueryParser.RelationRef =>
+  "RangeVar" in node
 
-function filterDuplicateTableRefs (tableRefs: TableReference[]) {
+function filterDuplicateTableRefs(tableRefs: TableReference[]) {
   return tableRefs.reduce(
-    (filtered, ref) => filtered.find(someRef => JSON.stringify(someRef) === JSON.stringify(ref)) ? filtered : [...filtered, ref],
+    (filtered, ref) =>
+      filtered.find(someRef => JSON.stringify(someRef) === JSON.stringify(ref))
+        ? filtered
+        : [...filtered, ref],
     [] as TableReference[]
   )
 }
 
-function isSpreadInsertExpression (expression: NodePath<any>): expression is NodePath<types.CallExpression> {
+function isSpreadInsertExpression(
+  expression: NodePath<any>
+): expression is NodePath<types.CallExpression> {
   if (!expression.isCallExpression()) return false
 
   const callee = expression.get("callee")
@@ -49,7 +52,11 @@ function isSpreadInsertExpression (expression: NodePath<any>): expression is Nod
   return Boolean(importSpecifier)
 }
 
-function resolveSpreadArgumentType (expression: NodePath<types.CallExpression>, tsProgram: ts.Program, tsSource: ts.SourceFile) {
+function resolveSpreadArgumentType(
+  expression: NodePath<types.CallExpression>,
+  tsProgram: ts.Program,
+  tsSource: ts.SourceFile
+) {
   const callee = expression.get("callee") as NodePath<types.Identifier>
   const args = expression.get("arguments")
 
@@ -60,31 +67,49 @@ function resolveSpreadArgumentType (expression: NodePath<types.CallExpression>, 
   const spreadArg = args[0]
   if (!spreadArg.node.start || !spreadArg.node.end) return null
 
-  const node = getNodeAtPosition(tsSource, spreadArg.node.start, spreadArg.node.end) as ts.Expression
+  const node = getNodeAtPosition(
+    tsSource,
+    spreadArg.node.start,
+    spreadArg.node.end
+  ) as ts.Expression
+
   if (!node) {
-    console.warn(format.warning(
-      `Warning: Could not match SQL template string expression node between Babel and TypeScript parser. Skipping type checking of this expression.\n` +
-      `  File: ${tsSource.fileName}\n` +
-      `  Template expression: ${tsSource.getText().substring(spreadArg.node.start, spreadArg.node.end)}`
-    ))
+    console.warn(
+      format.warning(
+        `Warning: Could not match SQL template string expression node between Babel and TypeScript parser. Skipping type checking of this expression.\n` +
+          `  File: ${tsSource.fileName}\n` +
+          `  Template expression: ${tsSource
+            .getText()
+            .substring(spreadArg.node.start, spreadArg.node.end)}`
+      )
+    )
     return null
   }
 
   const checker = tsProgram.getTypeChecker()
   const type = checker.getContextualType(node)
+
   if (!type) {
-    console.warn(format.warning(
-      `Warning: Could not resolve TypeScript type for SQL template string expression. Skipping type checking of this expression.\n` +
-      `  File: ${tsSource.fileName}\n` +
-      `  Template expression: ${tsSource.getText().substring(spreadArg.node.start, spreadArg.node.end)}`
-    ))
+    console.warn(
+      format.warning(
+        `Warning: Could not resolve TypeScript type for SQL template string expression. Skipping type checking of this expression.\n` +
+          `  File: ${tsSource.fileName}\n` +
+          `  Template expression: ${tsSource
+            .getText()
+            .substring(spreadArg.node.start, spreadArg.node.end)}`
+      )
+    )
     return null
   }
 
   return type
 }
 
-function parsePostgresQuery (queryString: string, path: NodePath<types.TemplateLiteral>, sourceFile: SourceFile) {
+function parsePostgresQuery(
+  queryString: string,
+  path: NodePath<types.TemplateLiteral>,
+  sourceFile: SourceFile
+) {
   const result = QueryParser.parse(queryString)
 
   if (result.error) {
@@ -93,9 +118,15 @@ function parsePostgresQuery (queryString: string, path: NodePath<types.TemplateL
       query: queryString,
       referencedColumns: [],
       referencedTables: [],
-      sourceMap: path.node.loc ? [
-        { sourceLocation: path.node.loc, queryStartIndex: 0, queryEndIndex: queryString.length - 1 }
-      ] : [],
+      sourceMap: path.node.loc
+        ? [
+            {
+              sourceLocation: path.node.loc,
+              queryStartIndex: 0,
+              queryEndIndex: queryString.length - 1
+            }
+          ]
+        : [],
       sourceFile
     }
     throw augmentFileValidationError(augmentQuerySyntaxError(error, result.error, query), query)
@@ -104,10 +135,13 @@ function parsePostgresQuery (queryString: string, path: NodePath<types.TemplateL
   return result.query[0]
 }
 
-function getTableReferences (statementPath: QueryNodePath<any>, includeSubQueries: boolean): QueryNodePath<QueryParser.RelationRef>[] {
-  const referencedTables: QueryNodePath<QueryParser.RelationRef>[] = []
+function getTableReferences(
+  statementPath: QueryNodePath<any>,
+  includeSubQueries: boolean
+): Array<QueryNodePath<QueryParser.RelationRef>> {
+  const referencedTables: Array<QueryNodePath<QueryParser.RelationRef>> = []
 
-  traverseSubTree(statementPath.node, statementPath.ancestors, (path) => {
+  traverseSubTree(statementPath.node, statementPath.ancestors, path => {
     const { node } = path
     if (isRelationRef(node)) {
       referencedTables.push(path)
@@ -119,7 +153,10 @@ function getTableReferences (statementPath: QueryNodePath<any>, includeSubQuerie
   return referencedTables
 }
 
-function resolveTableName (tableIdentifier: string, tableRefs: QueryNodePath<QueryParser.RelationRef>[]): string {
+function resolveTableName(
+  tableIdentifier: string,
+  tableRefs: Array<QueryNodePath<QueryParser.RelationRef>>
+): string {
   const matchingTableRef = tableRefs.find(tableRef => {
     const refNode = tableRef.node
     return refNode.RangeVar.alias
@@ -134,7 +171,10 @@ function resolveTableName (tableIdentifier: string, tableRefs: QueryNodePath<Que
   }
 }
 
-function getReferencedColumns (parsedQuery: QueryParser.Query, spreadTypes: ExpressionSpreadTypes): ColumnReference[] {
+function getReferencedColumns(
+  parsedQuery: QueryParser.Query,
+  spreadTypes: ExpressionSpreadTypes
+): ColumnReference[] {
   const referencedColumns: ColumnReference[] = []
 
   traverseQuery(parsedQuery, path => {
@@ -163,7 +203,11 @@ function getReferencedColumns (parsedQuery: QueryParser.Query, spreadTypes: Expr
       } else if (fields.length === 2) {
         const [tableNode, columnNode] = fields
         if (!isPgString(tableNode)) {
-          throw new Error(`Expected first identifier in column reference to be a string. Got ${getNodeType(tableNode)}`)
+          throw new Error(
+            `Expected first identifier in column reference to be a string. Got ${getNodeType(
+              tableNode
+            )}`
+          )
         }
         if (isPgString(columnNode)) {
           // Ignore `table.*` column references, since there is nothing to validate
@@ -174,18 +218,23 @@ function getReferencedColumns (parsedQuery: QueryParser.Query, spreadTypes: Expr
           })
         }
       } else {
-        throw new Error(`Expected column reference to be of format <table>.<column> or <column>. Got: ${fields.join(".")}`)
+        throw new Error(
+          `Expected column reference to be of format <table>.<column> or <column>. Got: ${fields.join(
+            "."
+          )}`
+        )
       }
     } else if (spreadType) {
       const placeholderSelectStmt = findParentQueryStatement(path)
       if (!placeholderSelectStmt || !placeholderSelectStmt.node.SelectStmt) {
         throw new Error(
           `Internal invariant violation: Expected spread expression in SQL template to be substituted by a 'SELECT $1'.\n` +
-          `No parent SELECT statement found, though.`
+            `No parent SELECT statement found, though.`
         )
       }
 
-      const statement = findParentQueryStatement(placeholderSelectStmt) || createQueryNodePath(parsedQuery, [])
+      const statement =
+        findParentQueryStatement(placeholderSelectStmt) || createQueryNodePath(parsedQuery, [])
       const relationRefs = getTableReferences(statement, false)
 
       const tableRefsInScope: TableReference[] = relationRefs.map(ref => ({
@@ -206,13 +255,13 @@ function getReferencedColumns (parsedQuery: QueryParser.Query, spreadTypes: Expr
   return referencedColumns
 }
 
-export function parseQuery (path: NodePath<types.TemplateLiteral>, sourceFile: SourceFile): Query {
+export function parseQuery(path: NodePath<types.TemplateLiteral>, sourceFile: SourceFile): Query {
   const expressions = path.get("expressions")
   const textPartials = path.get("quasis").map(quasi => quasi.node)
 
   const expressionSpreadTypes: ExpressionSpreadTypes = {}
+  const sourceMap: QuerySourceMapSpan[] = []
   let templatedQueryString: string = ""
-  let sourceMap: QuerySourceMapSpan[] = []
 
   const addToQueryString = (node: types.Node, queryStringPartial: string) => {
     if (node.loc) {
@@ -232,33 +281,50 @@ export function parseQuery (path: NodePath<types.TemplateLiteral>, sourceFile: S
     const expression = expressions[index]
     const paramNumber = index + 1
 
-    const placeholder = isSpreadInsertExpression(expression) ? `SELECT \$${paramNumber}` : `\$${paramNumber}`
+    const placeholder = isSpreadInsertExpression(expression)
+      ? `SELECT \$${paramNumber}`
+      : `\$${paramNumber}`
     templatedQueryString = addToQueryString(expression.node, placeholder)
 
     if (sourceFile.ts && isSpreadInsertExpression(expression)) {
-      const spreadArgType = resolveSpreadArgumentType(expression, sourceFile.ts.program, sourceFile.ts.sourceFile)
-      expressionSpreadTypes[paramNumber] = spreadArgType ? getProperties(sourceFile.ts.program, spreadArgType) : null
+      const spreadArgType = resolveSpreadArgumentType(
+        expression,
+        sourceFile.ts.program,
+        sourceFile.ts.sourceFile
+      )
+      expressionSpreadTypes[paramNumber] = spreadArgType
+        ? getProperties(sourceFile.ts.program, spreadArgType)
+        : null
 
       if (!expressionSpreadTypes[paramNumber]) {
         const lineHint = path.node.loc ? `:${path.node.loc.start.line}` : ``
-        console.warn(format.warning(
-          `Warning: Cannot infer properties of spread expression in SQL template at ${sourceFile.filePath}${lineHint}`
-        ))
+        console.warn(
+          format.warning(
+            `Warning: Cannot infer properties of spread expression in SQL template at ${
+              sourceFile.filePath
+            }${lineHint}`
+          )
+        )
       }
     }
 
     if (textPartials[index + 1]) {
-      templatedQueryString = addToQueryString(textPartials[index + 1], textPartials[index + 1].value.cooked)
+      templatedQueryString = addToQueryString(
+        textPartials[index + 1],
+        textPartials[index + 1].value.cooked
+      )
     }
   }
 
   const parsedQuery = parsePostgresQuery(templatedQueryString, path, sourceFile)
   const referencedColumns = getReferencedColumns(parsedQuery, expressionSpreadTypes)
 
-  const referencedTables = getTableReferences(createQueryNodePath(parsedQuery, []), true).map(path => ({
-    tableName: path.node.RangeVar.relname,
-    path
-  }))
+  const referencedTables = getTableReferences(createQueryNodePath(parsedQuery, []), true).map(
+    tableRef => ({
+      tableName: tableRef.node.RangeVar.relname,
+      path: tableRef
+    })
+  )
 
   return {
     referencedColumns,

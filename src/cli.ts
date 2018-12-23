@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// tslint:disable no-console
 
 import * as chokidar from "chokidar"
 import * as logSymbols from "log-symbols"
@@ -9,20 +10,23 @@ import * as format from "./format"
 import { parseFile, Query, TableSchema } from "./parse-file"
 import { assertNoBrokenColumnRefs, assertNoBrokenTableRefs } from "./validation"
 
-const cli = meow(`
+const cli = meow(
+  `
   Usage
     $ pg-lint ./path/to/source/*.ts
 
   Options
     --help        Print this help
     -w, --watch   Watch files and re-evaluate on change
-`, {
-  flags: {
-    help: { type: "boolean" },
-    w: { type: "boolean" },
-    watch: { type: "boolean" }
+`,
+  {
+    flags: {
+      help: { type: "boolean" },
+      w: { type: "boolean" },
+      watch: { type: "boolean" }
+    }
   }
-})
+)
 
 if (cli.input.length === 0) {
   cli.showHelp()
@@ -31,22 +35,26 @@ if (cli.input.length === 0) {
 
 const watchMode = Boolean(cli.flags.watch || cli.flags.w)
 
-function checkSchemasForDuplicates (allTableSchemas: TableSchema[]) {
+function checkSchemasForDuplicates(allTableSchemas: TableSchema[]) {
   for (const schema of allTableSchemas) {
-    const schemasMatchingThatName = allTableSchemas.filter(someSchema => someSchema.tableName === schema.tableName)
+    const schemasMatchingThatName = allTableSchemas.filter(
+      someSchema => someSchema.tableName === schema.tableName
+    )
     if (schemasMatchingThatName.length > 1) {
       throw new Error(
         `Table ${schema.tableName} has been defined more than once:\n` +
-        schemasMatchingThatName.map(duplicate => {
-          const lineRef = duplicate.loc ? `:${duplicate.loc.start.line}` : ``
-          return `  - ${duplicate.sourceFile.filePath}${lineRef}`
-        }).join("\n")
+          schemasMatchingThatName
+            .map(duplicate => {
+              const lineRef = duplicate.loc ? `:${duplicate.loc.start.line}` : ``
+              return `  - ${duplicate.sourceFile.filePath}${lineRef}`
+            })
+            .join("\n")
       )
     }
   }
 }
 
-function run (sourceFilePaths: string[], moreSchemas: TableSchema[] = []) {
+function run(sourceFilePaths: string[], moreSchemas: TableSchema[] = []) {
   let allQueries: Query[] = []
   let allTableSchemas: TableSchema[] = [...moreSchemas]
 
@@ -68,13 +76,17 @@ function run (sourceFilePaths: string[], moreSchemas: TableSchema[] = []) {
       assertNoBrokenColumnRefs(query, allTableSchemas)
     }
 
-    console.log(format.success(
-      `${logSymbols.success} Validated ${allQueries.length} queries against ${allTableSchemas.length} table schemas. All fine!`
-    ))
+    console.log(
+      format.success(
+        `${logSymbols.success} Validated ${allQueries.length} queries against ${
+          allTableSchemas.length
+        } table schemas. All fine!`
+      )
+    )
   } catch (error) {
     if (isAugmentedError(error)) {
       const [firstLine, ...lines] = String(error.message).split("\n")
-      const linesIndented = lines.map(line => line.match(/^>?\s*\d*\s*\|/) ? line : `  ${line}`)
+      const linesIndented = lines.map(line => (line.match(/^>?\s*\d*\s*\|/) ? line : `  ${line}`))
       console.error(`${logSymbols.error} ${[firstLine, ...linesIndented].join("\n")}`)
     } else {
       console.error(error.stack)
@@ -97,7 +109,7 @@ if (watchMode) {
 
   chokidar.watch(cli.input).on("all", (event, filePath) => {
     const schemasInOtherFiles = schemas.filter(schema => schema.sourceFile.filePath !== filePath)
-    const lastRunResult = run([ filePath ], schemasInOtherFiles)
+    const lastRunResult = run([filePath], schemasInOtherFiles)
 
     schemas = lastRunResult.schemas
     console.log("")
