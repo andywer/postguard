@@ -4,6 +4,7 @@ import * as QueryParser from "pg-query-parser"
 import * as ts from "typescript"
 import { getReferencedNamedImport } from "./babel-parser-utils"
 import { augmentFileValidationError, augmentQuerySyntaxError } from "./errors"
+import * as format from "./format"
 import {
   createQueryNodePath,
   findParentQueryStatement,
@@ -82,22 +83,22 @@ function resolveSpreadArgumentType (expression: NodePath<types.CallExpression>, 
 
   const node = getNodeAtPosition(tsSource, spreadArg.node.start, spreadArg.node.end) as ts.Expression
   if (!node) {
-    console.error(
+    console.warn(format.warning(
       `Warning: Could not match SQL template string expression node between Babel and TypeScript parser. Skipping type checking of this expression.\n` +
       `  File: ${tsSource.fileName}\n` +
       `  Template expression: ${tsSource.getText().substring(spreadArg.node.start, spreadArg.node.end)}`
-    )
+    ))
     return null
   }
 
   const checker = tsProgram.getTypeChecker()
   const type = checker.getContextualType(node)
   if (!type) {
-    console.error(
+    console.warn(format.warning(
       `Warning: Could not resolve TypeScript type for SQL template string expression. Skipping type checking of this expression.\n` +
       `  File: ${tsSource.fileName}\n` +
       `  Template expression: ${tsSource.getText().substring(spreadArg.node.start, spreadArg.node.end)}`
-    )
+    ))
     return null
   }
 
@@ -241,7 +242,9 @@ export function parseQuery (path: NodePath<types.TemplateLiteral>, filePath: str
 
       if (!expressionSpreadTypes[paramNumber]) {
         const lineHint = path.node.loc ? `:${path.node.loc.start.line}` : ``
-        console.error(`Warning: Cannot infer properties of spread expression in SQL template at ${filePath}${lineHint}`)
+        console.warn(format.warning(
+          `Warning: Cannot infer properties of spread expression in SQL template at ${filePath}${lineHint}`
+        ))
       }
     }
 

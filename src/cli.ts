@@ -5,6 +5,7 @@ import * as logSymbols from "log-symbols"
 import meow from "meow"
 import * as path from "path"
 import { isAugmentedError } from "./errors"
+import * as format from "./format"
 import { parseFile, Query, TableSchema } from "./parse-file"
 import { assertNoBrokenColumnRefs, assertNoBrokenTableRefs } from "./validation"
 
@@ -67,7 +68,9 @@ function run (sourceFilePaths: string[], moreSchemas: TableSchema[] = []) {
       assertNoBrokenColumnRefs(query, allTableSchemas)
     }
 
-    console.log(`${logSymbols.success} Validated ${allQueries.length} queries against ${allTableSchemas.length} table schemas. All fine!`)
+    console.log(format.success(
+      `${logSymbols.success} Validated ${allQueries.length} queries against ${allTableSchemas.length} table schemas. All fine!`
+    ))
   } catch (error) {
     if (isAugmentedError(error)) {
       const [firstLine, ...lines] = String(error.message).split("\n")

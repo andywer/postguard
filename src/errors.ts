@@ -1,5 +1,6 @@
 import { codeFrameColumns, SourceLocation } from "@babel/code-frame"
 import { ParsingError } from "pg-query-parser"
+import * as format from "./format"
 import { Query } from "./parse-file"
 import { QueryNodePath } from "./query-parser-utils"
 
@@ -18,10 +19,12 @@ export function fail (message: string): never {
 
 function formatSourceLink (filePath: string, location?: SourceLocation | null): string {
   if (location) {
-    return `${filePath}:${location.start.line}`
-      + (location.start.column ? `:${location.start.column + 1}` : ``)
+    const locationString = location.start.column
+      ? `${filePath}:${location.start.line}:${location.start.column + 1}`
+      : `${filePath}:${location.start.line}`
+    return format.sourceReference(locationString)
   } else {
-    return filePath
+    return format.sourceReference(filePath)
   }
 }
 
@@ -46,8 +49,8 @@ export function augmentFileValidationError (error: Error | SyntaxError | Validat
 
   error.name = "ValidationError"
   error.message = (
-    `Query validation failed in ${formatSourceLink(query.filePath, query.loc)}:\n\n` +
-    `${error.message}\n\n` +
+    format.error(`Query validation failed in ${formatSourceLink(query.filePath, query.loc)}:`) + `\n\n` +
+    format.error(`${error.message}`) + `\n\n` +
     formattedQuery
   )
   return error
