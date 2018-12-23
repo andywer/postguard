@@ -13,39 +13,18 @@ import {
   traverseSubTree,
   QueryNodePath
 } from "./query-parser-utils"
+import {
+  ColumnReference,
+  Query,
+  QuerySourceMapSpan,
+  SourceFile,
+  TableReference
+} from "./types"
 import { getProperties } from "./typescript/objectish"
 import { getNodeAtPosition } from "./typescript/file"
 
 interface ExpressionSpreadTypes {
   [paramID: number]: ReturnType<typeof getProperties> | null
-}
-
-export interface TableReference {
-  tableName: string,
-  as?: string,
-  path: QueryNodePath<any>
-}
-
-export interface QualifiedColumnReference {
-  tableName: string,
-  columnName: string,
-  path: QueryNodePath<any>
-}
-
-export interface UnqualifiedColumnReference {
-  tableRefsInScope: TableReference[],
-  columnName: string,
-  path: QueryNodePath<any>
-}
-
-export type ColumnReference = QualifiedColumnReference | UnqualifiedColumnReference
-
-export interface Query {
-  filePath: string,
-  query: string,
-  referencedColumns: ColumnReference[],
-  referencedTables: TableReference[],
-  loc: types.SourceLocation | null
 }
 
 const isColumnRef = (node: QueryParser.QueryNode<any>): node is QueryParser.ColumnRef => "ColumnRef" in node
@@ -105,18 +84,21 @@ function resolveSpreadArgumentType (expression: NodePath<types.CallExpression>, 
   return type
 }
 
-function parsePostgresQuery (query: string, path: NodePath<types.TemplateLiteral>, filePath: string) {
-  const result = QueryParser.parse(query)
+function parsePostgresQuery (queryString: string, path: NodePath<types.TemplateLiteral>, sourceFile: SourceFile) {
+  const result = QueryParser.parse(queryString)
 
   if (result.error) {
-    const error = new Error(`Syntax error in SQL query.`)
-    throw augmentFileValidationError(augmentQuerySyntaxError(error, result.error), {
-      filePath,
-      query,
+    const error = new Error(`Syntax error in SQL query.\nSubstituted query: ${queryString.trim()}`)
+    const query: Query = {
+      query: queryString,
       referencedColumns: [],
       referencedTables: [],
-      loc: path.node.loc
-    })
+      sourceMap: path.node.loc ? [
+        { sourceLocation: path.node.loc, queryStartIndex: 0, queryEndIndex: queryString.length - 1 }
+      ] : [],
+      sourceFile
+    }
+    throw augmentFileValidationError(augmentQuerySyntaxError(error, result.error, query), query)
   }
 
   return result.query[0]
@@ -224,36 +206,53 @@ function getReferencedColumns (parsedQuery: QueryParser.Query, spreadTypes: Expr
   return referencedColumns
 }
 
-export function parseQuery (path: NodePath<types.TemplateLiteral>, filePath: string, tsProgram?: ts.Program, tsSource?: ts.SourceFile): Query {
+export function parseQuery (path: NodePath<types.TemplateLiteral>, sourceFile: SourceFile): Query {
   const expressions = path.get("expressions")
-  const textPartials = path.get("quasis").map(quasi => quasi.node.value.cooked)
+  const textPartials = path.get("quasis").map(quasi => quasi.node)
 
   const expressionSpreadTypes: ExpressionSpreadTypes = {}
-  let templatedQueryString = textPartials[0]
+  let templatedQueryString: string = ""
+  let sourceMap: QuerySourceMapSpan[] = []
+
+  const addToQueryString = (node: types.Node, queryStringPartial: string) => {
+    if (node.loc) {
+      sourceMap.push({
+        sourceLocation: node.loc,
+        queryStartIndex: templatedQueryString.length,
+        queryEndIndex: templatedQueryString.length + queryStringPartial.length
+      })
+    }
+
+    return templatedQueryString + queryStringPartial
+  }
+
+  templatedQueryString = addToQueryString(textPartials[0], textPartials[0].value.cooked)
 
   for (let index = 0; index < expressions.length; index++) {
     const expression = expressions[index]
     const paramNumber = index + 1
-    templatedQueryString += isSpreadInsertExpression(expression) ? `SELECT \$${paramNumber}` : `\$${paramNumber}`
 
-    if (tsProgram && tsSource && isSpreadInsertExpression(expression)) {
-      const spreadArgType = resolveSpreadArgumentType(expression, tsProgram, tsSource)
-      expressionSpreadTypes[paramNumber] = spreadArgType ? getProperties(tsProgram, spreadArgType) : null
+    const placeholder = isSpreadInsertExpression(expression) ? `SELECT \$${paramNumber}` : `\$${paramNumber}`
+    templatedQueryString = addToQueryString(expression.node, placeholder)
+
+    if (sourceFile.ts && isSpreadInsertExpression(expression)) {
+      const spreadArgType = resolveSpreadArgumentType(expression, sourceFile.ts.program, sourceFile.ts.sourceFile)
+      expressionSpreadTypes[paramNumber] = spreadArgType ? getProperties(sourceFile.ts.program, spreadArgType) : null
 
       if (!expressionSpreadTypes[paramNumber]) {
         const lineHint = path.node.loc ? `:${path.node.loc.start.line}` : ``
         console.warn(format.warning(
-          `Warning: Cannot infer properties of spread expression in SQL template at ${filePath}${lineHint}`
+          `Warning: Cannot infer properties of spread expression in SQL template at ${sourceFile.filePath}${lineHint}`
         ))
       }
     }
 
     if (textPartials[index + 1]) {
-      templatedQueryString += textPartials[index + 1]
+      templatedQueryString = addToQueryString(textPartials[index + 1], textPartials[index + 1].value.cooked)
     }
   }
 
-  const parsedQuery = parsePostgresQuery(templatedQueryString, path, filePath)
+  const parsedQuery = parsePostgresQuery(templatedQueryString, path, sourceFile)
   const referencedColumns = getReferencedColumns(parsedQuery, expressionSpreadTypes)
 
   const referencedTables = getTableReferences(createQueryNodePath(parsedQuery, []), true).map(path => ({
@@ -262,10 +261,10 @@ export function parseQuery (path: NodePath<types.TemplateLiteral>, filePath: str
   }))
 
   return {
-    filePath,
     referencedColumns,
     referencedTables,
     query: templatedQueryString,
-    loc: path.node.loc
+    sourceFile,
+    sourceMap
   }
 }

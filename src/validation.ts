@@ -1,6 +1,5 @@
 import { augmentFileValidationError, augmentValidationError } from "./errors"
-import { Query, QualifiedColumnReference, UnqualifiedColumnReference, TableReference } from "./parse-query"
-import { TableSchema } from "./parse-table-definition"
+import { Query, QualifiedColumnReference, UnqualifiedColumnReference, TableReference, TableSchema } from "./types"
 
 function assertIntactQualifiedColumnRef (columnRef: QualifiedColumnReference, tables: TableSchema[]) {
   const table = tables.find(someTable => someTable.tableName === columnRef.tableName)
@@ -61,7 +60,7 @@ export function assertNoBrokenColumnRefs (query: Query, tables: TableSchema[]) {
           assertIntactUnqualifiedColumnRef(columnRef, tables)
         }
       } catch (error) {
-        throw augmentValidationError(error, columnRef.path)
+        throw augmentValidationError(error, columnRef.path, query)
       }
     }
   } catch (error) {
@@ -75,7 +74,7 @@ export function assertNoBrokenTableRefs (query: Query, tables: TableSchema[]) {
       try {
         assertIntactTableRef(tableRef, tables)
       } catch (error) {
-        throw augmentValidationError(error, tableRef.path)
+        throw augmentValidationError(error, tableRef.path, query)
       }
     }
   } catch (error) {
