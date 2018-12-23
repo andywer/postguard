@@ -44,7 +44,9 @@ defineTable("users", {
 })
 
 export async function queryUserById (id) {
-  const { rows } = await database.query(sql`SELECT * FROM users WHERE ix = ${id}`)
+  const { rows } = await database.query(sql`
+    SELECT * FROM users WHERE ix = ${id}
+  `)
   return rows.length > 0 ? rows[0] : null
 }
 ```
@@ -63,8 +65,10 @@ Now let's fix the issue:
 
 ```diff
   export async function queryUserById (id) {
--   const { rows } = await database.query(sql`SELECT * FROM users WHERE ix = ${id}`)
-+   const { rows } = await database.query(sql`SELECT * FROM users WHERE id = ${id}`)
+    const { rows } = await database.query(sql`
+-     SELECT * FROM users WHERE ix = ${id}
++     SELECT * FROM users WHERE id = ${id}
+    `)
   return rows.length > 0 ? rows[0] : null
 }
 ```
