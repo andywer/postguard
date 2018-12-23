@@ -39,7 +39,7 @@ function checkSchemasForDuplicates (allTableSchemas: TableSchema[]) {
         `Table ${schema.tableName} has been defined more than once:\n` +
         schemasMatchingThatName.map(duplicate => {
           const lineRef = duplicate.loc ? `:${duplicate.loc.start.line}` : ``
-          return `  - ${duplicate.filePath}${lineRef}`
+          return `  - ${duplicate.sourceFile.filePath}${lineRef}`
         }).join("\n")
       )
     }
@@ -96,7 +96,7 @@ if (watchMode) {
   console.log(`\nWatching file changes... Press CTRL + C to cancel.\n`)
 
   chokidar.watch(cli.input).on("all", (event, filePath) => {
-    const schemasInOtherFiles = schemas.filter(schema => schema.filePath !== filePath)
+    const schemasInOtherFiles = schemas.filter(schema => schema.sourceFile.filePath !== filePath)
     const lastRunResult = run([ filePath ], schemasInOtherFiles)
 
     schemas = lastRunResult.schemas

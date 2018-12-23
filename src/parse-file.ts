@@ -3,8 +3,9 @@ import createDebugLogger from "debug"
 import * as fs from "fs"
 import { getReferencedNamedImport } from "./babel-parser-utils"
 import { fail } from "./errors"
-import { parseQuery, Query } from "./parse-query"
-import { parseTableDefinition, TableSchema } from "./parse-table-definition"
+import { parseQuery } from "./parse-query"
+import { parseTableDefinition } from "./parse-table-definition"
+import { Query, SourceFile, TableSchema } from "./types"
 import { compileFiles } from "./typescript/file"
 
 export {
@@ -24,6 +25,18 @@ function compileTypeScript (filePath: string) {
   }
 }
 
+function instantiateSourceFile (filePath: string): SourceFile {
+  const program = filePath.endsWith(".ts") ? compileTypeScript(filePath) : undefined
+
+  return {
+    filePath,
+    ts: program ? {
+      program,
+      sourceFile: program.getSourceFile(filePath) || fail(`Cannot retrieve source file ${filePath} from compiled TypeScript sources.`)
+    } : undefined
+  }
+}
+
 export function parseFile (filePath: string) {
   debugFile(`Start parsing file ${filePath}`)
   const queries: Query[] = []
@@ -32,16 +45,13 @@ export function parseFile (filePath: string) {
   const isTypescript = filePath.endsWith(".ts")
   const content = fs.readFileSync(filePath, "utf8")
 
+  const sourceFile = instantiateSourceFile(filePath)
+
   const ast = parse(content, {
     filename: filePath,
     plugins: isTypescript ? ["@babel/plugin-transform-typescript"] : [],
     sourceType: "unambiguous"
   })
-
-  const tsProgram = filePath.endsWith(".ts") ? compileTypeScript(filePath) : undefined
-  const tsSourceFile = tsProgram
-    ? tsProgram.getSourceFile(filePath) || fail(`Cannot retrieve source file ${filePath} from compiled TypeScript sources.`)
-    : undefined
 
   traverse(ast as any, {
     CallExpression (path) {
@@ -51,7 +61,7 @@ export function parseFile (filePath: string) {
       const importSpecifier = getReferencedNamedImport(callee, "defineTable")
       if (!importSpecifier) return
 
-      tableSchemas.push(parseTableDefinition(path, filePath))
+      tableSchemas.push(parseTableDefinition(path, sourceFile))
     },
     TaggedTemplateExpression (path) {
       const tag = path.get("tag")
@@ -60,7 +70,7 @@ export function parseFile (filePath: string) {
       const importSpecifier = getReferencedNamedImport(tag, "sql")
       if (!importSpecifier) return
 
-      queries.push(parseQuery(path.get("quasi"), filePath, tsProgram, tsSourceFile))
+      queries.push(parseQuery(path.get("quasi"), sourceFile))
     }
   })
 

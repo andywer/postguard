@@ -1,6 +1,5 @@
 import { augmentFileValidationError, augmentValidationError } from "./errors"
-import { Query, QualifiedColumnReference, UnqualifiedColumnReference, TableReference } from "./parse-query"
-import { TableSchema } from "./parse-table-definition"
+import { Query, QualifiedColumnReference, UnqualifiedColumnReference, TableReference, TableSchema } from "./types"
 
 function assertIntactQualifiedColumnRef (columnRef: QualifiedColumnReference, tables: TableSchema[]) {
   const table = tables.find(someTable => someTable.tableName === columnRef.tableName)

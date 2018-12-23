@@ -49,7 +49,7 @@ export function augmentFileValidationError (error: Error | SyntaxError | Validat
 
   error.name = "ValidationError"
   error.message = (
-    format.error(`Query validation failed in ${formatSourceLink(query.filePath, query.loc)}:`) + `\n\n` +
+    format.error(`Query validation failed in ${formatSourceLink(query.sourceFile.filePath, query.loc)}:`) + `\n\n` +
     format.error(`${error.message}`) + `\n\n` +
     formattedQuery
   )

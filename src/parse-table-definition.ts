@@ -1,13 +1,8 @@
 import { NodePath } from "@babel/traverse"
 import * as types from "@babel/types"
+import { SourceFile, TableSchema } from "./types"
 
 // TODO: Parse column types as well
-export interface TableSchema {
-  tableName: string,
-  columnNames: string[],
-  filePath: string,
-  loc: types.SourceLocation | null
-}
 
 function parseTableColumnsDefinition (path: NodePath<types.ObjectExpression>) {
   const columnNames = path.get("properties").reduce(
@@ -32,7 +27,7 @@ function parseTableColumnsDefinition (path: NodePath<types.ObjectExpression>) {
   }
 }
 
-export function parseTableDefinition (path: NodePath<types.CallExpression>, filePath: string): TableSchema {
+export function parseTableDefinition (path: NodePath<types.CallExpression>, sourceFile: SourceFile): TableSchema {
   const args = path.get("arguments")
   if (args.length !== 2) throw path.buildCodeFrameError("Expected two arguments on defineTable() call.")
 
@@ -46,7 +41,7 @@ export function parseTableDefinition (path: NodePath<types.CallExpression>, file
   return {
     tableName,
     columnNames,
-    filePath,
-    loc: path.node.loc
+    loc: path.node.loc,
+    sourceFile
   }
 }
