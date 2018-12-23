@@ -61,7 +61,7 @@ declare module "pg-query-parser" {
 
   interface ResTarget {
     ResTarget: {
-      name: string
+      name?: string
       val: ColumnRef | ParamRef | PgExpression
       location: number
     }
@@ -111,7 +111,7 @@ declare module "pg-query-parser" {
 
   interface CommonTableExpr {
     CommonTableExpr: {
-      ctename: string,
+      ctename: string
       ctequery: Query
       location: number
     }
@@ -201,5 +201,5 @@ declare module "pg-query-parser" {
     stderr?: string
   }
 
-  export function parse (query: string): ParsingResult
+  export function parse(query: string): ParsingResult
 }
