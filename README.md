@@ -37,17 +37,25 @@ npx pg-lint src/models/*
 Source:
 
 ```js
-// imports go here...
+const { defineTable, Schema } = require("sqldb/schema")
+const { sql } = require("sqldb/pg")
 
 defineTable("users", {
-  id: Schema.Number
+  id: Schema.Number,
+  name: Schema.String,
+  email: Schema.String,
+  created_at: Schema.JSON
 })
 
-export async function queryUserById(id) {
+async function queryUserById(id) {
   const { rows } = await database.query(sql`
     SELECT * FROM users WHERE ix = ${id}
   `)
   return rows.length > 0 ? rows[0] : null
+}
+
+module.exports = {
+  queryUserById
 }
 ```
 
@@ -77,6 +85,36 @@ Now let's fix the issue:
 $ pg-lint src/models/user.js
 ✔ Validated 1 queries against 1 table schemas. All fine!
 ```
+
+## TypeScript
+
+The sample above, now in TypeScript and as an INSERT:
+
+```ts
+import { defineTable, Schema, TableRow } from "sqldb/schema"
+import { sql, spreadInsert } from "sqldb/pg"
+
+const usersTable = defineTable("users", {
+  id: Schema.Number,
+  name: Schema.String,
+  email: Schema.String,
+  created_at: Schema.JSON
+})
+
+type UserRecord = TableRow<typeof usersTable>
+
+export async function createUser(record: UserRecord) {
+  const { rows } = await database.query(sql`
+    INSERT INTO users ${spreadInsert(record)} RETURNING *
+  `)
+  return rows[0] as UserRecord
+}
+```
+
+The `spreadInsert()` helper is also available in JavaScript, but in TypeScript you get some additional benefits:
+
+- pg-lint infers the type of `spreadInsert(record)`, checking that `record` matches the `users` schema
+- the `UserRecord` type is automatically inferred, based on the `users` table schema
 
 ## Motivation
 
