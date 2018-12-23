@@ -1,6 +1,6 @@
 import chalk from "chalk"
 
-export const error = (string: string) => chalk.redBright(string)
-export const sourceReference = (string: string) => chalk.blueBright(string)
-export const success = (string: string) => chalk.greenBright(string)
-export const warning = (string: string) => chalk.keyword("orange")(string)
+export const error = (text: string) => chalk.redBright(text)
+export const sourceReference = (text: string) => chalk.blueBright(text)
+export const success = (text: string) => chalk.greenBright(text)
+export const warning = (text: string) => chalk.keyword("orange")(text)
