@@ -26,9 +26,11 @@ function compileTypeScript (filePath: string) {
 }
 
 function instantiateSourceFile (filePath: string): SourceFile {
+  const fileContent = fs.readFileSync(filePath, "utf8")
   const program = filePath.endsWith(".ts") ? compileTypeScript(filePath) : undefined
 
   return {
+    fileContent,
     filePath,
     ts: program ? {
       program,
@@ -42,14 +44,11 @@ export function parseFile (filePath: string) {
   const queries: Query[] = []
   const tableSchemas: TableSchema[] = []
 
-  const isTypescript = filePath.endsWith(".ts")
-  const content = fs.readFileSync(filePath, "utf8")
-
   const sourceFile = instantiateSourceFile(filePath)
 
-  const ast = parse(content, {
+  const ast = parse(sourceFile.fileContent, {
     filename: filePath,
-    plugins: isTypescript ? ["@babel/plugin-transform-typescript"] : [],
+    plugins: sourceFile.ts ? ["@babel/plugin-transform-typescript"] : [],
     sourceType: "unambiguous"
   })
 
