@@ -39,6 +39,7 @@ export interface UnqualifiedColumnReference {
 export type ColumnReference = QualifiedColumnReference | UnqualifiedColumnReference
 
 export interface QuerySourceMapSpan {
+  isTemplateExpression?: boolean
   sourceLocation: types.SourceLocation
   queryStartIndex: number
   queryEndIndex: number

@@ -263,9 +263,14 @@ export function parseQuery(path: NodePath<types.TemplateLiteral>, sourceFile: So
   const sourceMap: QuerySourceMapSpan[] = []
   let templatedQueryString: string = ""
 
-  const addToQueryString = (node: types.Node, queryStringPartial: string) => {
+  const addToQueryString = (
+    node: types.Node,
+    queryStringPartial: string,
+    isTemplateExpression?: boolean
+  ) => {
     if (node.loc) {
       sourceMap.push({
+        isTemplateExpression,
         sourceLocation: node.loc,
         queryStartIndex: templatedQueryString.length,
         queryEndIndex: templatedQueryString.length + queryStringPartial.length
@@ -284,7 +289,7 @@ export function parseQuery(path: NodePath<types.TemplateLiteral>, sourceFile: So
     const placeholder = isSpreadInsertExpression(expression)
       ? `SELECT \$${paramNumber}`
       : `\$${paramNumber}`
-    templatedQueryString = addToQueryString(expression.node, placeholder)
+    templatedQueryString = addToQueryString(expression.node, placeholder, true)
 
     if (sourceFile.ts && isSpreadInsertExpression(expression)) {
       const spreadArgType = resolveSpreadArgumentType(

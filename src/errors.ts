@@ -58,7 +58,9 @@ function mapToSourceLocation(query: Query, stringIndex: number): SourceLocation 
   const preceedingTextInSpan = query.query.substring(matchingSpan.queryStartIndex, stringIndex)
 
   const lineIndexInSpan = preceedingTextInSpan.replace(/[^\n]/g, "").length
-  const columnIndexInSpan = indexInSpan - preceedingTextInSpan.lastIndexOf("\n")
+  const columnIndexInSpan = matchingSpan.isTemplateExpression
+    ? 1
+    : indexInSpan - preceedingTextInSpan.lastIndexOf("\n")
 
   return {
     start: {
