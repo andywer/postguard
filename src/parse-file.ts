@@ -23,7 +23,7 @@ function compileTypeScript(filePath: string) {
   }
 }
 
-function instantiateSourceFile(filePath: string): SourceFile {
+export function loadSourceFile(filePath: string): SourceFile {
   const fileContent = fs.readFileSync(filePath, "utf8")
   const program = filePath.endsWith(".ts") ? compileTypeScript(filePath) : undefined
 
@@ -41,15 +41,13 @@ function instantiateSourceFile(filePath: string): SourceFile {
   }
 }
 
-export function parseFile(filePath: string) {
-  debugFile(`Start parsing file ${filePath}`)
+export function parseSourceFile(sourceFile: SourceFile) {
+  debugFile(`Start parsing file ${sourceFile.filePath}`)
   const queries: Query[] = []
   const tableSchemas: TableSchema[] = []
 
-  const sourceFile = instantiateSourceFile(filePath)
-
   const ast = parse(sourceFile.fileContent, {
-    filename: filePath,
+    filename: sourceFile.filePath,
     plugins: sourceFile.ts ? ["@babel/plugin-transform-typescript"] : [],
     sourceType: "unambiguous"
   })
@@ -75,7 +73,7 @@ export function parseFile(filePath: string) {
     }
   })
 
-  debugFile(`Parsed file ${filePath}:`)
+  debugFile(`Parsed file ${sourceFile.filePath}:`)
 
   for (const query of queries) {
     const formattedColumnRefs = query.referencedColumns.map(col =>

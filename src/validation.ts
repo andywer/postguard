@@ -7,27 +7,10 @@ import {
   UnqualifiedColumnReference
 } from "./types"
 
-function assertIntactQualifiedColumnRef(
-  columnRef: QualifiedColumnReference,
-  tables: TableSchema[]
-) {
-  const table = tables.find(someTable => someTable.tableName === columnRef.tableName)
-
-  if (!table) {
-    throw new Error(`No table named ${columnRef.tableName} has been defined.`)
-  }
-
-  if (table.columnNames.indexOf(columnRef.columnName) > -1) {
-    throw new Error(
-      `Table ${columnRef.tableName} does not have a column named ${columnRef.columnName}.`
-    )
-  }
-}
-
-function assertIntactUnqualifiedColumnRef(
+function resolveToQualifiedColumnRef(
   columnRef: UnqualifiedColumnReference,
   tables: TableSchema[]
-) {
+): QualifiedColumnReference {
   let tablesInScopeSchemas: TableSchema[] = []
 
   for (const availableTableRef of columnRef.tableRefsInScope) {
@@ -56,13 +39,34 @@ function assertIntactUnqualifiedColumnRef(
         }` +
         inScopeSchemasContainingColumn.map(schema => schema.tableName).join(", ")
     )
-  }
-  if (inScopeSchemasContainingColumn.length > 1) {
+  } else if (inScopeSchemasContainingColumn.length > 1) {
     throw new Error(
       `Unqualified column reference "${
         columnRef.columnName
       }" matches more than one referenced table: ` +
         inScopeSchemasContainingColumn.map(schema => schema.tableName).join(", ")
+    )
+  }
+
+  return {
+    ...columnRef,
+    tableName: inScopeSchemasContainingColumn[0].tableName
+  }
+}
+
+function assertIntactQualifiedColumnRef(
+  columnRef: QualifiedColumnReference,
+  tables: TableSchema[]
+) {
+  const table = tables.find(someTable => someTable.tableName === columnRef.tableName)
+
+  if (!table) {
+    throw new Error(`No table named ${columnRef.tableName} has been defined.`)
+  }
+
+  if (table.columnNames.indexOf(columnRef.columnName) === -1) {
+    throw new Error(
+      `Table "${columnRef.tableName}" does not have a column named "${columnRef.columnName}".`
     )
   }
 }
@@ -73,15 +77,13 @@ function assertIntactTableRef(tableRef: TableReference, tables: TableSchema[]) {
   }
 }
 
-export function assertNoBrokenColumnRefs(query: Query, tables: TableSchema[]) {
+function assertNoBrokenColumnRefs(query: Query, tables: TableSchema[]) {
   try {
     for (const columnRef of query.referencedColumns) {
       try {
-        if ("tableName" in columnRef) {
-          assertIntactQualifiedColumnRef(columnRef, tables)
-        } else {
-          assertIntactUnqualifiedColumnRef(columnRef, tables)
-        }
+        const qualifiedColumnRef =
+          "tableName" in columnRef ? columnRef : resolveToQualifiedColumnRef(columnRef, tables)
+        assertIntactQualifiedColumnRef(qualifiedColumnRef, tables)
       } catch (error) {
         throw augmentValidationError(error, columnRef.path, query)
       }
@@ -91,7 +93,7 @@ export function assertNoBrokenColumnRefs(query: Query, tables: TableSchema[]) {
   }
 }
 
-export function assertNoBrokenTableRefs(query: Query, tables: TableSchema[]) {
+function assertNoBrokenTableRefs(query: Query, tables: TableSchema[]) {
   try {
     for (const tableRef of query.referencedTables) {
       try {
@@ -103,4 +105,9 @@ export function assertNoBrokenTableRefs(query: Query, tables: TableSchema[]) {
   } catch (error) {
     throw augmentFileValidationError(error, query)
   }
+}
+
+export function validateQuery(query: Query, tables: TableSchema[]) {
+  assertNoBrokenTableRefs(query, tables)
+  assertNoBrokenColumnRefs(query, tables)
 }

@@ -5,7 +5,8 @@
   "bin": "dist/cli.js",
   "scripts": {
     "build": "tsc",
-    "test": "prettier --list-different 'src/**' && tslint --project ."
+    "test": "ava",
+    "posttest": "prettier --list-different 'src/**' && tslint --project ."
   },
   "author": "Andy Wermke <andy@dev.next-step-software.com>",
   "license": "MIT",
@@ -37,6 +38,7 @@
     "@types/meow": "^5.0.0",
     "@types/node": "^10.12.15",
     "@types/pg": "^7.4.11",
+    "ava": "^1.0.1",
     "husky": "^1.2.1",
     "pg": "^7.7.1",
     "prettier": "1.15.3",
@@ -48,6 +50,18 @@
   "files": [
     "dist/**/*"
   ],
+  "ava": {
+    "compileEnhancements": false,
+    "extensions": [
+      "ts"
+    ],
+    "files": [
+      "test/**/*.test.ts"
+    ],
+    "require": [
+      "ts-node/register"
+    ]
+  },
   "husky": {
     "hooks": {
       "pre-commit": "pretty-quick --staged"
