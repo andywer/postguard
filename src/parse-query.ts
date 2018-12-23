@@ -40,15 +40,16 @@ function filterDuplicateTableRefs(tableRefs: TableReference[]) {
   )
 }
 
-function isSpreadInsertExpression(
-  expression: NodePath<any>
+function isSpreadCallExpression(
+  expression: NodePath<any>,
+  fnName: "spreadAnd" | "spreadInsert"
 ): expression is NodePath<types.CallExpression> {
   if (!expression.isCallExpression()) return false
 
   const callee = expression.get("callee")
   if (!callee.isIdentifier()) return false
 
-  const importSpecifier = getReferencedNamedImport(callee, "spreadInsert")
+  const importSpecifier = getReferencedNamedImport(callee, fnName)
   return Boolean(importSpecifier)
 }
 
@@ -286,12 +287,12 @@ export function parseQuery(path: NodePath<types.TemplateLiteral>, sourceFile: So
     const expression = expressions[index]
     const paramNumber = index + 1
 
-    const placeholder = isSpreadInsertExpression(expression)
+    const placeholder = isSpreadCallExpression(expression, "spreadInsert")
       ? `SELECT \$${paramNumber}`
       : `\$${paramNumber}`
     templatedQueryString = addToQueryString(expression.node, placeholder, true)
 
-    if (sourceFile.ts && isSpreadInsertExpression(expression)) {
+    if (sourceFile.ts && isSpreadCallExpression(expression, "spreadInsert")) {
       const spreadArgType = resolveSpreadArgumentType(
         expression,
         sourceFile.ts.program,

@@ -7,8 +7,8 @@ import meow from "meow"
 import * as path from "path"
 import { isAugmentedError } from "./errors"
 import * as format from "./format"
-import { parseFile, Query, TableSchema } from "./parse-file"
-import { assertNoBrokenColumnRefs, assertNoBrokenTableRefs } from "./validation"
+import { loadSourceFile, parseSourceFile, Query, TableSchema } from "./parse-file"
+import { validateQuery } from "./validation"
 
 const cli = meow(
   `
@@ -62,7 +62,7 @@ function run(sourceFilePaths: string[], moreSchemas: TableSchema[] = []) {
 
   try {
     for (const filePath of sourceFilePaths) {
-      const { queries, tableSchemas } = parseFile(filePath)
+      const { queries, tableSchemas } = parseSourceFile(loadSourceFile(filePath))
       // TODO: Check that no table is defined twice
 
       allQueries = [...allQueries, ...queries]
@@ -72,8 +72,7 @@ function run(sourceFilePaths: string[], moreSchemas: TableSchema[] = []) {
     checkSchemasForDuplicates(allTableSchemas)
 
     for (const query of allQueries) {
-      assertNoBrokenTableRefs(query, allTableSchemas)
-      assertNoBrokenColumnRefs(query, allTableSchemas)
+      validateQuery(query, allTableSchemas)
     }
 
     console.log(
