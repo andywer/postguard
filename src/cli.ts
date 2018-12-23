@@ -42,7 +42,7 @@ function checkSchemasForDuplicates(allTableSchemas: TableSchema[]) {
     )
     if (schemasMatchingThatName.length > 1) {
       throw new Error(
-        `Table ${schema.tableName} has been defined more than once:\n` +
+        `Table "${schema.tableName}" has been defined more than once:\n` +
           schemasMatchingThatName
             .map(duplicate => {
               const lineRef = duplicate.loc ? `:${duplicate.loc.start.line}` : ``
@@ -106,7 +106,7 @@ let { schemas } = run(cli.input)
 if (watchMode) {
   console.log(`\nWatching file changes... Press CTRL + C to cancel.\n`)
 
-  chokidar.watch(cli.input).on("all", (event, filePath) => {
+  chokidar.watch(cli.input, { ignoreInitial: true }).on("all", (event, filePath) => {
     const schemasInOtherFiles = schemas.filter(schema => schema.sourceFile.filePath !== filePath)
     const lastRunResult = run([filePath], schemasInOtherFiles)
 
