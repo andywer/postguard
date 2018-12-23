@@ -29,6 +29,8 @@ const isPgString = (node: QueryParser.QueryNode<any>): node is QueryParser.PgStr
   "String" in node
 const isRelationRef = (node: QueryParser.QueryNode<any>): node is QueryParser.RelationRef =>
   "RangeVar" in node
+const isResTarget = (node: QueryParser.QueryNode<any>): node is QueryParser.ResTarget =>
+  "ResTarget" in node
 
 function filterDuplicateTableRefs(tableRefs: TableReference[]) {
   return tableRefs.reduce(
@@ -225,6 +227,20 @@ function getReferencedColumns(
           )}`
         )
       }
+    } else if (isResTarget(path.node) && path.node.ResTarget.name) {
+      const statement = findParentQueryStatement(path) || createQueryNodePath(parsedQuery, [])
+      const relationRefs = getTableReferences(statement, false)
+
+      const tableRefsInScope: TableReference[] = relationRefs.map(ref => ({
+        as: ref.node.RangeVar.alias ? ref.node.RangeVar.alias.Alias.aliasname : undefined,
+        tableName: ref.node.RangeVar.relname,
+        path
+      }))
+      referencedColumns.push({
+        tableRefsInScope: filterDuplicateTableRefs(tableRefsInScope),
+        columnName: path.node.ResTarget.name,
+        path
+      })
     } else if (spreadType) {
       const placeholderSelectStmt = findParentQueryStatement(path)
       if (!placeholderSelectStmt || !placeholderSelectStmt.node.SelectStmt) {

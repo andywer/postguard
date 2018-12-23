@@ -25,3 +25,13 @@ test("fails on bad qualified column reference", t => {
   t.regex(error.message, containsToRegex(`Table "projects" does not have a column named "email".`))
   t.regex(error.message, containsToRegex(`_fixtures/column-reference-qualified.ts:16:23`))
 })
+
+test("fails on bad column reference in INSERT", t => {
+  const { queries, tableSchemas } = parseSourceFile(
+    loadSourceFile(pathToFixture("column-reference-insert.ts"))
+  )
+  const error = t.throws(() => queries.forEach(query => validateQuery(query, tableSchemas)))
+  t.is(error.name, "ValidationError")
+  t.regex(error.message, containsToRegex(`No table in the query's scope has a column "foo".`))
+  t.regex(error.message, containsToRegex(`_fixtures/column-reference-insert.ts:13:31`))
+})
