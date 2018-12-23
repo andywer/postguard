@@ -88,7 +88,7 @@ function parsePostgresQuery (queryString: string, path: NodePath<types.TemplateL
   const result = QueryParser.parse(queryString)
 
   if (result.error) {
-    const error = new Error(`Syntax error in SQL query.`)
+    const error = new Error(`Syntax error in SQL query.\nSubstituted query: ${queryString.trim()}`)
     const query: Query = {
       query: queryString,
       referencedColumns: [],
