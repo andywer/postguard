@@ -104,13 +104,13 @@ function run(sourceFilePaths: string[], moreSchemas: TableSchema[] = []) {
 let { schemas } = run(cli.input)
 
 if (watchMode) {
-  console.log(`\nWatching file changes... Press CTRL + C to cancel.\n`)
+  console.log("\nWatching file changes... Press CTRL + C to cancel.")
 
   chokidar.watch(cli.input, { ignoreInitial: true }).on("all", (event, filePath) => {
+    console.log("\n")
     const schemasInOtherFiles = schemas.filter(schema => schema.sourceFile.filePath !== filePath)
     const lastRunResult = run([filePath], schemasInOtherFiles)
 
     schemas = lastRunResult.schemas
-    console.log("")
   })
 }
