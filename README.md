@@ -1,18 +1,16 @@
 <h1 align="center">pg-lint</h1>
 
 <p align="center">
-Validate SQL queries in JavaScript and TypeScript code against your schema at build time (!) 🚀
+  <b>Validate SQL queries in JavaScript and TypeScript code against your schema at build time 🚀</b>
 </p>
 
 <br />
 
-Built on the [Babel](https://babeljs.io/) and [TypeScript](http://www.typescriptlang.org/) stack. Uses [`pg-query-parser`](npmjs.com/package/pg-query-parser), which is built on `libpg_query`, the real-deal Postgres query parser implementation.
+Parses source files with [Babel](https://babeljs.io/). Will additionally fire up the [TypeScript](http://www.typescriptlang.org/) compiler to infer and validate the types of template expressions for TypeScript source files. So you get **SQL queries that are type-checked against your code** 😱😱
 
-Use it with [sqldb](https://github.com/andywer/sqldb) template strings. Its tagged template strings some sugar to write short, explicit SQL queries for even complex tables.
+Use with [sqldb](https://github.com/andywer/sqldb). It provides SQL tagged template strings, auto-escapes dynamic expressions to prevent SQL injections and comes with some syntactic sugar to write short, explicit SQL queries.
 
-When validating TypeScript code, pg-lint will fire up the TypeScript compiler to infer and validate the types of sqldb's `spread*()` arguments. So you have **SQL queries that are type-checked against your code** 😱😱😱
-
-Why not just stick to an ORM? Because ORMs are a foot gun. Read more about it [here](https://medium.com/ameykpatil/why-orm-shouldnt-be-your-best-bet-fffb66314b1b) and [here](https://blog.logrocket.com/why-you-should-avoid-orms-with-examples-in-node-js-e0baab73fa5), for instance.
+Parses SQL queries with [`pg-query-parser`](npmjs.com/package/pg-query-parser). It is built on `libpg_query`, the actual Postgres query parser implementation.
 
 ## Usage
 
@@ -32,6 +30,12 @@ We can use npm's [npx tool](https://blog.npmjs.org/post/162869356040/introducing
 npx pg-lint src/models/*
 ```
 
+<br />
+
+<p align="center">
+  <img alt="Screencast" src="./docs/screencast.gif" width="80%" />
+</p>
+
 ## Example
 
 Source:
@@ -40,6 +44,7 @@ Source:
 const { defineTable, Schema } = require("sqldb/schema")
 const { sql } = require("sqldb/pg")
 
+// The schema definition can be in another file, of course
 defineTable("users", {
   id: Schema.Number,
   name: Schema.String,
@@ -113,8 +118,8 @@ export async function createUser(record: UserRecord) {
 
 The `spreadInsert()` helper is also available in JavaScript, but in TypeScript you get some additional benefits:
 
-- pg-lint infers the type of `spreadInsert(record)`, checking that `record` matches the `users` schema
-- the `UserRecord` type is automatically inferred, based on the `users` table schema
+- Type-inference of `spreadInsert(record)`, checking that `record` matches the `users` schema
+- The `UserRecord` type is inferred from the `users` table schema
 
 ## Motivation
 
