@@ -10,7 +10,7 @@ function isRequireCall(path: NodePath<types.CallExpression>) {
 
 export function getReferencedNamedImport(
   identifier: NodePath<types.Identifier>,
-  expectedOriginalName: string
+  expectedNameAsExported: string
 ): NodePath<types.Identifier> | undefined {
   const binding = identifier.scope.getBinding(identifier.node.name)
   if (!binding) return
@@ -19,7 +19,7 @@ export function getReferencedNamedImport(
 
   if (
     bindingPath.isImportSpecifier() &&
-    bindingPath.get("imported").node.name === expectedOriginalName
+    bindingPath.get("imported").node.name === expectedNameAsExported
   ) {
     // import { sql } from "..."
     return bindingPath.get("imported")
@@ -36,7 +36,7 @@ export function getReferencedNamedImport(
           property.isObjectProperty() &&
           !Array.isArray(property.get("key")) &&
           (property.get("key") as NodePath<types.Node>).isIdentifier() &&
-          (property.get("key") as NodePath<types.Identifier>).node.name === expectedOriginalName
+          (property.get("key") as NodePath<types.Identifier>).node.name === expectedNameAsExported
         ) {
           return property.get("key") as NodePath<types.Identifier>
         }
@@ -62,13 +62,13 @@ export function getReferencedNamedImport(
       if (
         !Array.isArray(initProp) &&
         initProp.isIdentifier() &&
-        initProp.node.name === expectedOriginalName
+        initProp.node.name === expectedNameAsExported
       ) {
         return id
       } else if (
         !Array.isArray(initProp) &&
         initProp.isStringLiteral() &&
-        initProp.node.value === expectedOriginalName
+        initProp.node.value === expectedNameAsExported
       ) {
         return id
       }

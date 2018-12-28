@@ -1,4 +1,5 @@
 import * as types from "@babel/types"
+import { TableSchemaDescriptor } from "squid"
 import * as ts from "typescript"
 import { QueryNodePath } from "./query-parser-utils"
 
@@ -15,6 +16,7 @@ export interface TableSchema {
   sourceFile: SourceFile
   tableName: string
   columnNames: string[]
+  columnDescriptors: TableSchemaDescriptor
   loc: types.SourceLocation | null
 }
 

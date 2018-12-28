@@ -2,7 +2,7 @@ import { NodePath } from "@babel/traverse"
 import * as types from "@babel/types"
 import * as QueryParser from "pg-query-parser"
 import * as ts from "typescript"
-import { getReferencedNamedImport } from "./babel-parser-utils"
+import { getReferencedNamedImport } from "./babel-imports"
 import { augmentFileValidationError, augmentQuerySyntaxError } from "./errors"
 import * as format from "./format"
 import {
