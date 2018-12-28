@@ -61,7 +61,7 @@ function resolveSpreadArgumentType(
   }
 
   const checker = tsProgram.getTypeChecker()
-  const type = checker.getContextualType(node)
+  const type = checker.getTypeAtLocation(node)
 
   if (!type) {
     console.warn(
