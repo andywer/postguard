@@ -14,8 +14,5 @@
     "strict": true,
     "typeRoots": ["./node_modules/@types", "./types"]
   },
-  "include": [
-    "./src/cli.ts",
-    "./types/*.d.ts"
-  ]
+  "include": ["./src/cli.ts", "./types/*.d.ts"]
 }
