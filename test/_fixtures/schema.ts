@@ -1,4 +1,4 @@
-import { defineTable, Schema } from "sqldb/schema"
+import { defineTable, Schema } from "squid/schema"
 
 defineTable("users", {
   id: Schema.Number,

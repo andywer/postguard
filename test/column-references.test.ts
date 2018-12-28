@@ -1,10 +1,40 @@
 import test from "ava"
 import * as path from "path"
 import { loadSourceFile, parseSourceFile } from "../src/parse-file"
+import { UnqualifiedColumnReference } from "../src/types"
 import { validateQuery } from "../src/validation"
 import { containsToRegex } from "./_helpers/assert"
 
 const pathToFixture = (fileName: string) => path.join(__dirname, "_fixtures", fileName)
+
+test("can infer column references from spread expression", t => {
+  const { queries } = parseSourceFile(
+    loadSourceFile(pathToFixture("column-reference-insert-spread.ts"))
+  )
+  const referencedColumns = (queries[0].referencedColumns as UnqualifiedColumnReference[]).map(
+    colRef => ({
+      tableRefsInScope: colRef.tableRefsInScope.map(tableRef => ({
+        tableName: tableRef.tableName,
+        as: tableRef.as
+      })),
+      columnName: colRef.columnName
+    })
+  )
+  t.deepEqual(referencedColumns, [
+    {
+      tableRefsInScope: [{ tableName: "users", as: undefined }],
+      columnName: "name"
+    },
+    {
+      tableRefsInScope: [{ tableName: "users", as: undefined }],
+      columnName: "email"
+    },
+    {
+      tableRefsInScope: [{ tableName: "users", as: undefined }],
+      columnName: "id"
+    }
+  ])
+})
 
 test("fails on bad unqualified column reference", t => {
   const { queries, tableSchemas } = parseSourceFile(
