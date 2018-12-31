@@ -36,6 +36,15 @@ test("can infer column references from spread expression", t => {
   ])
 })
 
+test("fails on missing column values for INSERT", t => {
+  const { queries, tableSchemas } = parseSourceFile(
+    loadSourceFile(pathToFixture("column-reference-insert-value-missing.ts"))
+  )
+  const error = t.throws(() => queries.forEach(query => validateQuery(query, tableSchemas)))
+  t.is(error.name, "ValidationError")
+  t.regex(error.message, containsToRegex(`Column "email" is missing from INSERT statement.`))
+})
+
 test("fails on bad unqualified column reference", t => {
   const { queries, tableSchemas } = parseSourceFile(
     loadSourceFile(pathToFixture("column-reference-unqualified.ts"))

@@ -1,5 +1,7 @@
-import { Query, QueryNode } from "pg-query-parser"
+import { Query, QueryNode, ResTarget } from "pg-query-parser"
 import * as util from "util"
+
+const $cancelToken = Symbol("cancel")
 
 export interface QueryNodePath<Node extends QueryNode<any>> {
   ancestors: Array<QueryNodePath<any>>
@@ -32,55 +34,45 @@ export function createQueryNodePath<Node extends QueryNode<any>>(
   }
 }
 
-type TraversalCallback = (path: QueryNodePath<any>) => false | void
+type TraversalCallback = (path: QueryNodePath<any>, cancelRecursionToken: symbol) => symbol | void
 
 function traverseArray(
+  path: QueryNodePath<QueryNode<any>>,
   array: any[],
-  ancestors: Array<QueryNodePath<any>>,
   callback: TraversalCallback
 ) {
   for (const item of array) {
     if (!item) continue
 
     if (Array.isArray(item)) {
-      traverseArray(item, ancestors, callback)
+      traverseArray(path, item, callback)
     } else {
-      traverseSubTree(item, ancestors, callback)
+      const itemPath = createQueryNodePath(item, [...path.ancestors, path])
+      traverseSubTree(itemPath, callback)
     }
   }
 }
 
-export function traverseSubTree(
-  node: QueryNode<any>,
-  ancestors: Array<QueryNodePath<any>>,
-  callback: TraversalCallback
-) {
-  const path = createQueryNodePath(node, ancestors)
+export function traverseSubTree(path: QueryNodePath<QueryNode<any>>, callback: TraversalCallback) {
+  const callbackResult = callback(path, $cancelToken)
+  if (callbackResult === $cancelToken) return
 
-  const callbackResult = callback(path)
-  if (callbackResult === false) return
-
-  for (const key of Object.keys((node as any)[path.type])) {
-    const propValue = (node as any)[path.type][key]
+  for (const key of Object.keys((path.node as any)[path.type])) {
+    const propValue = (path.node as any)[path.type][key]
 
     if (Array.isArray(propValue)) {
-      traverseArray(propValue, [...ancestors, path], callback)
+      traverseArray(path, propValue, callback)
     } else if (propValue && typeof propValue === "object") {
-      traverseSubTree(propValue, [...ancestors, path], callback)
+      const propPath = createQueryNodePath(propValue, [...path.ancestors, path])
+      traverseSubTree(propPath, callback)
     }
   }
 }
 
-export function traverseQuery(query: Query, callback: TraversalCallback) {
-  return traverseSubTree(query, [], callback)
-}
+export function getStatementReturningColumns(statement: Query): ResTarget[] {
+  const type = getNodeType(statement)
+  const body = (statement as any)[type]
 
-// Parent SELECT | INSERT | ... node path
-export function findParentQueryStatement(path: QueryNodePath<any>) {
-  for (const ancestor of [...path.ancestors].reverse()) {
-    if (ancestor.type.endsWith("Stmt")) {
-      return ancestor
-    }
-  }
-  return null
+  const { returningList = [], targetList = [] } = body
+  return [...returningList, ...targetList].filter(node => getNodeType(node) === "ResTarget")
 }

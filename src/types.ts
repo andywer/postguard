@@ -36,6 +36,7 @@ export interface UnqualifiedColumnReference {
   tableRefsInScope: TableReference[]
   columnName: string
   path: QueryNodePath<any>
+  any?: true
 }
 
 export type ColumnReference = QualifiedColumnReference | UnqualifiedColumnReference
@@ -48,9 +49,13 @@ export interface QuerySourceMapSpan {
 }
 
 export interface Query {
-  sourceFile: SourceFile
-  sourceMap: QuerySourceMapSpan[]
+  type: string
   query: string
+  path: QueryNodePath<any>
   referencedColumns: ColumnReference[]
   referencedTables: TableReference[]
+  returnedColumns: string[]
+  sourceFile: SourceFile
+  sourceMap: QuerySourceMapSpan[]
+  subqueries: Query[]
 }

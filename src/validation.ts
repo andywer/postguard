@@ -1,11 +1,15 @@
 import { augmentFileValidationError, augmentValidationError } from "./errors"
 import {
+  ColumnReference,
   QualifiedColumnReference,
   Query,
   TableReference,
   TableSchema,
   UnqualifiedColumnReference
 } from "./types"
+
+const isUnspecificColumnReference = (ref: ColumnReference) =>
+  (ref as UnqualifiedColumnReference).any || false
 
 function resolveToQualifiedColumnRef(
   columnRef: UnqualifiedColumnReference,
@@ -72,42 +76,71 @@ function assertIntactQualifiedColumnRef(
 }
 
 function assertIntactTableRef(tableRef: TableReference, tables: TableSchema[]) {
-  if (!tables.find(schema => schema.tableName === tableRef.tableName)) {
+  const tableSchema = tables.find(schema => schema.tableName === tableRef.tableName)
+  if (!tableSchema) {
     throw new Error(`No table with name "${tableRef.tableName}" has been defined.`)
   }
+  return tableSchema
 }
 
 function assertNoBrokenColumnRefs(query: Query, tables: TableSchema[]) {
-  try {
-    for (const columnRef of query.referencedColumns) {
-      try {
-        const qualifiedColumnRef =
-          "tableName" in columnRef ? columnRef : resolveToQualifiedColumnRef(columnRef, tables)
-        assertIntactQualifiedColumnRef(qualifiedColumnRef, tables)
-      } catch (error) {
-        throw augmentValidationError(error, columnRef.path, query)
-      }
+  for (const columnRef of query.referencedColumns) {
+    try {
+      if (isUnspecificColumnReference(columnRef)) continue
+
+      const qualifiedColumnRef =
+        "tableName" in columnRef ? columnRef : resolveToQualifiedColumnRef(columnRef, tables)
+      assertIntactQualifiedColumnRef(qualifiedColumnRef, tables)
+    } catch (error) {
+      throw augmentValidationError(error, columnRef.path, query)
     }
-  } catch (error) {
-    throw augmentFileValidationError(error, query)
   }
 }
 
 function assertNoBrokenTableRefs(query: Query, tables: TableSchema[]) {
-  try {
-    for (const tableRef of query.referencedTables) {
-      try {
-        assertIntactTableRef(tableRef, tables)
-      } catch (error) {
-        throw augmentValidationError(error, tableRef.path, query)
-      }
+  for (const tableRef of query.referencedTables) {
+    try {
+      assertIntactTableRef(tableRef, tables)
+    } catch (error) {
+      throw augmentValidationError(error, tableRef.path, query)
     }
-  } catch (error) {
-    throw augmentFileValidationError(error, query)
+  }
+}
+
+function assertCompleteInsertValues(query: Query, tables: TableSchema[]) {
+  if (query.type !== "INSERT") return
+  if (query.referencedColumns.some(isUnspecificColumnReference)) return
+
+  const schema = assertIntactTableRef(query.referencedTables[0], tables)
+
+  const mandatoryColumns = schema.columnNames
+    .map(columnName => ({ ...schema.columnDescriptors[columnName], columnName }))
+    .filter(descriptor => !descriptor.hasDefault)
+
+  for (const mandatoryColumn of mandatoryColumns) {
+    const columnReference = query.referencedColumns.find(
+      columnRef => columnRef.columnName === mandatoryColumn.columnName
+    )
+
+    if (!columnReference) {
+      const error = new Error(
+        `Column "${mandatoryColumn.columnName}" is missing from INSERT statement.`
+      )
+      throw augmentValidationError(error, query.path, query)
+    }
   }
 }
 
 export function validateQuery(query: Query, tables: TableSchema[]) {
-  assertNoBrokenTableRefs(query, tables)
-  assertNoBrokenColumnRefs(query, tables)
+  try {
+    assertNoBrokenTableRefs(query, tables)
+    assertNoBrokenColumnRefs(query, tables)
+    assertCompleteInsertValues(query, tables)
+  } catch (error) {
+    throw augmentFileValidationError(error, query)
+  }
+
+  for (const subquery of query.subqueries) {
+    validateQuery(subquery, tables)
+  }
 }

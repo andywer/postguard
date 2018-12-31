@@ -3,14 +3,13 @@ import * as types from "@babel/types"
 import * as ts from "typescript"
 import { getReferencedNamedImport } from "./babel-imports"
 import * as format from "./format"
-import { createQueryNodePath } from "./query-parser-utils"
-import { getReferencedColumns, getTableReferences, parsePostgresQuery } from "./parse-pg-query"
+import { parsePostgresQuery, spreadTypeAny } from "./parse-pg-query"
 import { Query, QuerySourceMapSpan, SourceFile } from "./types"
 import { getNodeAtPosition } from "./typescript/file"
 import { getProperties } from "./typescript/objectish"
 
 interface ExpressionSpreadTypes {
-  [paramID: number]: ReturnType<typeof getProperties> | null
+  [paramID: number]: ReturnType<typeof getProperties>
 }
 
 function isSpreadCallExpression(
@@ -79,6 +78,21 @@ function resolveSpreadArgumentType(
   return type
 }
 
+function resolveSpreadExpressionType(expression: NodePath<types.Node>, sourceFile: SourceFile) {
+  if (sourceFile.ts && isSpreadCallExpression(expression, "spreadInsert")) {
+    const spreadArgType = resolveSpreadArgumentType(
+      expression,
+      sourceFile.ts.program,
+      sourceFile.ts.sourceFile
+    )
+
+    const spreadType = spreadArgType ? getProperties(sourceFile.ts.program, spreadArgType) : null
+    return spreadType || spreadTypeAny
+  } else {
+    return spreadTypeAny
+  }
+}
+
 export function parseQuery(path: NodePath<types.TemplateLiteral>, sourceFile: SourceFile): Query {
   const expressions = path.get("expressions")
   const textPartials = path.get("quasis").map(quasi => quasi.node)
@@ -115,26 +129,17 @@ export function parseQuery(path: NodePath<types.TemplateLiteral>, sourceFile: So
       : `\$${paramNumber}`
     templatedQueryString = addToQueryString(expression.node, placeholder, true)
 
-    if (sourceFile.ts && isSpreadCallExpression(expression, "spreadInsert")) {
-      const spreadArgType = resolveSpreadArgumentType(
-        expression,
-        sourceFile.ts.program,
-        sourceFile.ts.sourceFile
-      )
-      expressionSpreadTypes[paramNumber] = spreadArgType
-        ? getProperties(sourceFile.ts.program, spreadArgType)
-        : null
+    expressionSpreadTypes[paramNumber] = resolveSpreadExpressionType(expression, sourceFile)
 
-      if (!expressionSpreadTypes[paramNumber]) {
-        const lineHint = path.node.loc ? `:${path.node.loc.start.line}` : ``
-        console.warn(
-          format.warning(
-            `Warning: Cannot infer properties of spread expression in SQL template at ${
-              sourceFile.filePath
-            }${lineHint}`
-          )
+    if (expressionSpreadTypes[paramNumber] === spreadTypeAny) {
+      const lineHint = path.node.loc ? `:${path.node.loc.start.line}` : ``
+      console.warn(
+        format.warning(
+          `Warning: Cannot infer properties of spread expression in SQL template at ${
+            sourceFile.filePath
+          }${lineHint}`
         )
-      }
+      )
     }
 
     if (textPartials[index + 1]) {
@@ -145,21 +150,5 @@ export function parseQuery(path: NodePath<types.TemplateLiteral>, sourceFile: So
     }
   }
 
-  const parsedQuery = parsePostgresQuery(templatedQueryString, path, sourceFile)
-  const referencedColumns = getReferencedColumns(parsedQuery, expressionSpreadTypes)
-
-  const referencedTables = getTableReferences(createQueryNodePath(parsedQuery, []), true).map(
-    tableRef => ({
-      tableName: tableRef.node.RangeVar.relname,
-      path: tableRef
-    })
-  )
-
-  return {
-    referencedColumns,
-    referencedTables,
-    query: templatedQueryString,
-    sourceFile,
-    sourceMap
-  }
+  return parsePostgresQuery(templatedQueryString, sourceFile, sourceMap, expressionSpreadTypes)
 }
