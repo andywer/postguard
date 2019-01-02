@@ -1,5 +1,12 @@
+import { Schema, TableSchemaDescriptor } from "squid"
 import { augmentFileValidationError, augmentValidationError } from "./errors"
 import {
+  getAllSubqueries,
+  resolveColumnReferences,
+  resolveUnqualifiedColumnRef
+} from "./query-utils"
+import {
+  AllOfColumnReference,
   ColumnReference,
   QualifiedColumnReference,
   Query,
@@ -8,60 +15,18 @@ import {
   UnqualifiedColumnReference
 } from "./types"
 
-const isUnspecificColumnReference = (ref: ColumnReference) =>
+const isAllOfColumnReference = (ref: ColumnReference): ref is AllOfColumnReference =>
+  (ref as AllOfColumnReference).columnName === "*" || false
+const isUnresolvableColumnReference = (ref: ColumnReference) =>
   (ref as UnqualifiedColumnReference).any || false
-
-function resolveToQualifiedColumnRef(
-  columnRef: UnqualifiedColumnReference,
-  tables: TableSchema[]
-): QualifiedColumnReference {
-  let tablesInScopeSchemas: TableSchema[] = []
-
-  for (const availableTableRef of columnRef.tableRefsInScope) {
-    tablesInScopeSchemas = [
-      ...tablesInScopeSchemas,
-      ...tables.filter(
-        schema =>
-          schema.tableName === availableTableRef.tableName &&
-          !tablesInScopeSchemas.find(
-            presentSchema => presentSchema.tableName === availableTableRef.tableName
-          )
-      )
-    ]
-  }
-
-  const inScopeSchemasContainingColumn = tablesInScopeSchemas.filter(
-    schema => schema.columnNames.indexOf(columnRef.columnName) > -1
-  )
-
-  if (inScopeSchemasContainingColumn.length === 0) {
-    const tablesInScopeNames = tablesInScopeSchemas.map(schema => `"${schema.tableName}"`)
-    throw new Error(
-      `No table in the query's scope has a column "${columnRef.columnName}".\n` +
-        `Tables in scope: ${
-          tablesInScopeNames.length > 0 ? tablesInScopeNames.join(", ") : "(none)"
-        }` +
-        inScopeSchemasContainingColumn.map(schema => schema.tableName).join(", ")
-    )
-  } else if (inScopeSchemasContainingColumn.length > 1) {
-    throw new Error(
-      `Unqualified column reference "${
-        columnRef.columnName
-      }" matches more than one referenced table: ` +
-        inScopeSchemasContainingColumn.map(schema => schema.tableName).join(", ")
-    )
-  }
-
-  return {
-    ...columnRef,
-    tableName: inScopeSchemasContainingColumn[0].tableName
-  }
-}
 
 function assertIntactQualifiedColumnRef(
   columnRef: QualifiedColumnReference,
   tables: TableSchema[]
 ) {
+  // Cannot validate column references that originate from non-inferrable spread expression
+  if (isUnresolvableColumnReference(columnRef)) return
+
   const table = tables.find(someTable => someTable.tableName === columnRef.tableName)
 
   if (!table) {
@@ -84,12 +49,13 @@ function assertIntactTableRef(tableRef: TableReference, tables: TableSchema[]) {
 }
 
 function assertNoBrokenColumnRefs(query: Query, tables: TableSchema[]) {
-  for (const columnRef of query.referencedColumns) {
-    try {
-      if (isUnspecificColumnReference(columnRef)) continue
+  const referencedColumns = resolveColumnReferences(query, tables)
 
+  for (const columnRef of referencedColumns) {
+    try {
       const qualifiedColumnRef =
-        "tableName" in columnRef ? columnRef : resolveToQualifiedColumnRef(columnRef, tables)
+        "tableName" in columnRef ? columnRef : resolveUnqualifiedColumnRef(columnRef, tables)
+
       assertIntactQualifiedColumnRef(qualifiedColumnRef, tables)
     } catch (error) {
       throw augmentValidationError(error, columnRef.path, query)
@@ -108,8 +74,9 @@ function assertNoBrokenTableRefs(query: Query, tables: TableSchema[]) {
 }
 
 function assertCompleteInsertValues(query: Query, tables: TableSchema[]) {
+  // FIXME: Consider SELECT INTO queries as well
   if (query.type !== "INSERT") return
-  if (query.referencedColumns.some(isUnspecificColumnReference)) return
+  if (query.referencedColumns.some(isUnresolvableColumnReference)) return
 
   const schema = assertIntactTableRef(query.referencedTables[0], tables)
 
@@ -117,8 +84,10 @@ function assertCompleteInsertValues(query: Query, tables: TableSchema[]) {
     .map(columnName => ({ ...schema.columnDescriptors[columnName], columnName }))
     .filter(descriptor => !descriptor.hasDefault)
 
+  const queryColumns = [...query.referencedColumns, ...resolveColumnReferences(query, tables)]
+
   for (const mandatoryColumn of mandatoryColumns) {
-    const columnReference = query.referencedColumns.find(
+    const columnReference = queryColumns.find(
       columnRef => columnRef.columnName === mandatoryColumn.columnName
     )
 
@@ -131,7 +100,43 @@ function assertCompleteInsertValues(query: Query, tables: TableSchema[]) {
   }
 }
 
-export function validateQuery(query: Query, tables: TableSchema[]) {
+function resolveColumnRefsToTableSchemaDescriptor(
+  returnedColumns: ColumnReference[],
+  tables: TableSchema[]
+): TableSchemaDescriptor {
+  let syntheticSchema: TableSchemaDescriptor = {}
+
+  for (const columnRef of returnedColumns) {
+    if (isAllOfColumnReference(columnRef)) {
+      const referencedTableSchema = assertIntactTableRef(columnRef, tables)
+
+      syntheticSchema = {
+        ...syntheticSchema,
+        ...referencedTableSchema.columnDescriptors
+      }
+    } else {
+      syntheticSchema[columnRef.columnName] = Schema.Any
+    }
+  }
+
+  return syntheticSchema
+}
+
+function resolveSubqueryToTableSchema(
+  query: Query & { exposedAsTable: string },
+  tables: TableSchema[]
+): TableSchema {
+  const schema = resolveColumnRefsToTableSchemaDescriptor(query.returnedColumns, tables)
+  return {
+    tableName: query.exposedAsTable,
+    columnDescriptors: schema,
+    columnNames: Object.keys(schema),
+    loc: query.path.node.loc,
+    sourceFile: query.sourceFile
+  }
+}
+
+function validateSubquery(query: Query, tables: TableSchema[]) {
   try {
     assertNoBrokenTableRefs(query, tables)
     assertNoBrokenColumnRefs(query, tables)
@@ -143,4 +148,16 @@ export function validateQuery(query: Query, tables: TableSchema[]) {
   for (const subquery of query.subqueries) {
     validateQuery(subquery, tables)
   }
+}
+
+export function validateQuery(query: Query, tables: TableSchema[]) {
+  const tableExpressions: TableSchema[] = getAllSubqueries(query)
+    .map<TableSchema | null>(subquery =>
+      subquery.exposedAsTable
+        ? resolveSubqueryToTableSchema(subquery as Query & { exposedAsTable: string }, tables)
+        : null
+    )
+    .filter((schemaOrNull): schemaOrNull is TableSchema => schemaOrNull !== null)
+
+  validateSubquery(query, [...tables, ...tableExpressions])
 }

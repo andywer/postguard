@@ -1,11 +1,10 @@
-import { NodePath } from "@babel/traverse"
-import * as types from "@babel/types"
 import * as QueryParser from "pg-query-parser"
 import { augmentFileValidationError, augmentQuerySyntaxError } from "./errors"
 import {
   createQueryNodePath,
+  createQueryNodeSubpath,
   getNodeType,
-  getStatementReturningColumns,
+  getQueryPathParent,
   traverseSubTree,
   QueryNodePath
 } from "./query-parser-utils"
@@ -32,6 +31,8 @@ export const spreadTypeAny: ReturnType<typeof getProperties> = Object.defineProp
 
 const isColumnRef = (node: QueryParser.QueryNode<any>): node is QueryParser.ColumnRef =>
   "ColumnRef" in node
+const isCommonTableExpr = (node: QueryParser.QueryNode<any>): node is QueryParser.CommonTableExpr =>
+  "CommonTableExpr" in node
 const isParamRef = (node: QueryParser.QueryNode<any>): node is QueryParser.ParamRef =>
   "ParamRef" in node
 const isPgString = (node: QueryParser.QueryNode<any>): node is QueryParser.PgString =>
@@ -42,6 +43,7 @@ const isResTarget = (node: QueryParser.QueryNode<any>): node is QueryParser.ResT
   "ResTarget" in node
 const isSelectStmt = (node: QueryParser.QueryNode<any>): node is QueryParser.SelectStmt =>
   "SelectStmt" in node
+const isStar = (node: QueryParser.QueryNode<any>): node is QueryParser.PgStar => "A_Star" in node
 
 const isPlaceholderSelect = (node: QueryParser.QueryNode<any>) =>
   isSelectStmt(node) &&
@@ -53,6 +55,9 @@ const isPlaceholderSelect = (node: QueryParser.QueryNode<any>) =>
 
 const isSubquery = (node: QueryParser.QueryNode<any>) =>
   getNodeType(node).endsWith("Stmt") && !isPlaceholderSelect(node)
+
+const isReturningIntoParentQuery = (path: QueryNodePath<QueryParser.QueryNode<any>>) =>
+  ["larg", "rarg", "selectStmt"].indexOf(path.parentPropKey) > -1
 
 function filterDuplicateTableRefs(tableRefs: TableReference[]) {
   return tableRefs.reduce(
@@ -117,6 +122,102 @@ function resolveTableName(
   }
 }
 
+function resolveColumnReference(
+  path: QueryNodePath<QueryParser.ColumnRef>,
+  relationRefs: Array<QueryNodePath<QueryParser.RelationRef>>
+): ColumnReference | null {
+  const { fields } = path.node.ColumnRef
+
+  if (fields.length === 1) {
+    const [columnNode] = fields
+    if (isPgString(columnNode)) {
+      const tableRefsInScope: TableReference[] = relationRefs.map(ref => ({
+        as: ref.node.RangeVar.alias ? ref.node.RangeVar.alias.Alias.aliasname : undefined,
+        tableName: ref.node.RangeVar.relname,
+        path
+      }))
+      return {
+        tableRefsInScope: filterDuplicateTableRefs(tableRefsInScope),
+        columnName: columnNode.String.str,
+        path
+      }
+    } else if (isStar(columnNode)) {
+      if (relationRefs.length !== 1) {
+        throw new Error(
+          `Can only have unqualified * selector if only one table is referenced in the (sub-)query.\n` +
+            `Tables in scope: ${
+              relationRefs.length === 0
+                ? "(none)"
+                : relationRefs.map(ref => ref.node.RangeVar.relname)
+            }`
+        )
+      }
+      const tableRef = relationRefs[0]
+      return {
+        tableName: tableRef.node.RangeVar.alias
+          ? tableRef.node.RangeVar.alias.Alias.aliasname
+          : tableRef.node.RangeVar.relname,
+        columnName: "*",
+        path
+      }
+    }
+  } else if (fields.length === 2) {
+    const [tableNode, columnNode] = fields
+    if (!isPgString(tableNode)) {
+      throw new Error(
+        `Expected first identifier in column reference to be a string. Got ${getNodeType(
+          tableNode
+        )}`
+      )
+    }
+    if (isPgString(columnNode)) {
+      return {
+        tableName: resolveTableName(tableNode.String.str, relationRefs),
+        columnName: columnNode.String.str,
+        path
+      }
+    } else if (isStar(columnNode)) {
+      return {
+        tableName: resolveTableName(tableNode.String.str, relationRefs),
+        columnName: "*",
+        path
+      }
+    }
+  } else {
+    throw new Error(
+      `Expected column reference to be of format <table>.<column> or <column>. Got: ${fields.join(
+        "."
+      )}`
+    )
+  }
+
+  return null
+}
+
+function resolveResTarget(
+  path: QueryNodePath<QueryParser.ResTarget>,
+  relationRefs: Array<QueryNodePath<QueryParser.RelationRef>>
+): ColumnReference | null {
+  const { name, val } = path.node.ResTarget
+
+  if (name) {
+    const tableRefsInScope: TableReference[] = relationRefs.map(ref => ({
+      as: ref.node.RangeVar.alias ? ref.node.RangeVar.alias.Alias.aliasname : undefined,
+      tableName: ref.node.RangeVar.relname,
+      path
+    }))
+    return {
+      tableRefsInScope: filterDuplicateTableRefs(tableRefsInScope),
+      columnName: name,
+      path
+    }
+  } else if (isColumnRef(val)) {
+    return resolveColumnReference(createQueryNodeSubpath(path, val, "val"), relationRefs)
+  } else {
+    return null
+  }
+}
+
 function getReferencedColumns(
   statement: QueryNodePath<QueryParser.Query>,
   spreadTypes: ExpressionSpreadTypes
@@ -130,61 +231,19 @@ function getReferencedColumns(
     if (isSubquery(path.node)) return $cancelRecursion
 
     if (isColumnRef(path.node)) {
-      const { fields } = path.node.ColumnRef
       const relationRefs = getTableReferences(statement, false)
+      const columnRef = resolveColumnReference(path, relationRefs)
 
-      if (fields.length === 1) {
-        const [columnNode] = fields
-        if (isPgString(columnNode)) {
-          // Ignore `*` column references, since there is nothing to validate
-          const tableRefsInScope: TableReference[] = relationRefs.map(ref => ({
-            as: ref.node.RangeVar.alias ? ref.node.RangeVar.alias.Alias.aliasname : undefined,
-            tableName: ref.node.RangeVar.relname,
-            path
-          }))
-          referencedColumns.push({
-            tableRefsInScope: filterDuplicateTableRefs(tableRefsInScope),
-            columnName: columnNode.String.str,
-            path
-          })
-        }
-      } else if (fields.length === 2) {
-        const [tableNode, columnNode] = fields
-        if (!isPgString(tableNode)) {
-          throw new Error(
-            `Expected first identifier in column reference to be a string. Got ${getNodeType(
-              tableNode
-            )}`
-          )
-        }
-        if (isPgString(columnNode)) {
-          // Ignore `table.*` column references, since there is nothing to validate
-          referencedColumns.push({
-            tableName: resolveTableName(tableNode.String.str, relationRefs),
-            columnName: columnNode.String.str,
-            path
-          })
-        }
-      } else {
-        throw new Error(
-          `Expected column reference to be of format <table>.<column> or <column>. Got: ${fields.join(
-            "."
-          )}`
-        )
+      if (columnRef) {
+        referencedColumns.push(columnRef)
       }
     } else if (isResTarget(path.node) && path.node.ResTarget.name) {
       const relationRefs = getTableReferences(statement, false)
+      const columnRef = resolveResTarget(path, relationRefs)
 
-      const tableRefsInScope: TableReference[] = relationRefs.map(ref => ({
-        as: ref.node.RangeVar.alias ? ref.node.RangeVar.alias.Alias.aliasname : undefined,
-        tableName: ref.node.RangeVar.relname,
-        path
-      }))
-      referencedColumns.push({
-        tableRefsInScope: filterDuplicateTableRefs(tableRefsInScope),
-        columnName: path.node.ResTarget.name,
-        path
-      })
+      if (columnRef) {
+        referencedColumns.push(columnRef)
+      }
     } else if (spreadType) {
       const relationRefs = getTableReferences(statement, false)
 
@@ -215,16 +274,35 @@ function getReferencedColumns(
   return referencedColumns
 }
 
-function instantiateQuery(path: QueryNodePath<QueryParser.Query>, context: QueryContext) {
+export function getStatementReturningColumns(
+  statement: QueryNodePath<QueryParser.Query>
+): ColumnReference[] {
+  const body = (statement.node as any)[statement.type]
+
+  const relationRefs = getTableReferences(statement, false)
+  const { returningList = [], targetList = [] } = body
+
+  const resTargets: QueryParser.ResTarget[] = [...returningList, ...targetList].filter(
+    node => getNodeType(node) === "ResTarget"
+  )
+
+  return resTargets
+    .map(resTarget => {
+      const propKey = returningList.indexOf(resTarget) > -1 ? "returningList" : "targetList"
+      const resTargetPath = createQueryNodeSubpath(statement, resTarget, propKey)
+      return resolveResTarget(resTargetPath, relationRefs)
+    })
+    .filter((ref): ref is ColumnReference => ref !== null)
+}
+
+function instantiateQuery(path: QueryNodePath<QueryParser.Query>, context: QueryContext): Query {
   const referencedColumns = getReferencedColumns(path, context.expressionSpreadTypes)
   const referencedTables = getTableReferences(path, true).map(tableRef => ({
     tableName: tableRef.node.RangeVar.relname,
     path: tableRef
   }))
 
-  const returnedColumns: string[] = getStatementReturningColumns(path.node)
-    .map(resTarget => resTarget.ResTarget.name)
-    .filter(name => !!name) as string[]
+  const returnedColumns = getStatementReturningColumns(path)
 
   const subqueries: Query[] = getSubqueries(path).map(subqueryPath =>
     instantiateQuery(subqueryPath, context)
@@ -233,12 +311,18 @@ function instantiateQuery(path: QueryNodePath<QueryParser.Query>, context: Query
     .replace(/Stmt$/, "")
     .toUpperCase()
 
+  const parent = getQueryPathParent(path)
+  const exposedAsTable =
+    parent && isCommonTableExpr(parent.node) ? parent.node.CommonTableExpr.ctename : undefined
+
   return {
     type,
     path,
+    exposedAsTable,
     referencedColumns,
     referencedTables,
     returnedColumns,
+    returnsIntoParentQuery: isReturningIntoParentQuery(path),
     query: context.query,
     sourceFile: context.sourceFile,
     sourceMap: context.sourceMap,
@@ -261,14 +345,14 @@ export function parsePostgresQuery(
   const result = QueryParser.parse(queryString)
 
   if (result.error) {
-    const fakePath = createQueryNodePath({ SelectStmt: { op: 0 } }, [])
+    const fakePath = createQueryNodePath({ SelectStmt: { op: 0 } }, [], "")
     const query = instantiateQuery(fakePath, context)
     const error = new Error(`Syntax error in SQL query.\nSubstituted query: ${queryString.trim()}`)
     throw augmentFileValidationError(augmentQuerySyntaxError(error, result.error, query), query)
   }
 
   const parsedQuery = result.query[0]
-  const queryPath = createQueryNodePath(parsedQuery, [])
+  const queryPath = createQueryNodePath(parsedQuery, [], "")
 
   return instantiateQuery(queryPath, context)
 }

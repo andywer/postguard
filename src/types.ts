@@ -26,10 +26,19 @@ export interface TableReference {
   path: QueryNodePath<any>
 }
 
+export interface AllOfColumnReference {
+  tableName: string
+  columnName: "*"
+  path: QueryNodePath<any>
+}
+
+// FIXME: The `any?` marker is too unspecific. It's either a columnName or `any` is set.
+
 export interface QualifiedColumnReference {
   tableName: string
   columnName: string
   path: QueryNodePath<any>
+  any?: true
 }
 
 export interface UnqualifiedColumnReference {
@@ -39,7 +48,10 @@ export interface UnqualifiedColumnReference {
   any?: true
 }
 
-export type ColumnReference = QualifiedColumnReference | UnqualifiedColumnReference
+export type ColumnReference =
+  | QualifiedColumnReference
+  | UnqualifiedColumnReference
+  | AllOfColumnReference
 
 export interface QuerySourceMapSpan {
   isTemplateExpression?: boolean
@@ -52,9 +64,11 @@ export interface Query {
   type: string
   query: string
   path: QueryNodePath<any>
+  exposedAsTable?: string
   referencedColumns: ColumnReference[]
   referencedTables: TableReference[]
-  returnedColumns: string[]
+  returnedColumns: ColumnReference[]
+  returnsIntoParentQuery?: boolean
   sourceFile: SourceFile
   sourceMap: QuerySourceMapSpan[]
   subqueries: Query[]
