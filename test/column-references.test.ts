@@ -43,11 +43,6 @@ test("fails on missing column values for INSERT", t => {
   t.regex(error.message, containsToRegex(`Column "email" is missing from INSERT statement.`))
 })
 
-test("validates a WITH AS INSERT statement successfully", t => {
-  const { queries, tableSchemas } = parseSourceFile(loadSourceFile(pathToFixture("insert-with.ts")))
-  t.notThrows(() => queries.forEach(query => validateQuery(query, tableSchemas)))
-})
-
 test("fails on bad unqualified column reference", t => {
   const { queries, tableSchemas } = parseSourceFile(
     loadSourceFile(pathToFixture("column-reference-unqualified.ts"))
