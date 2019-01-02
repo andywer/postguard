@@ -8,9 +8,7 @@ import { containsToRegex } from "./_helpers/assert"
 const pathToFixture = (fileName: string) => path.join(__dirname, "_fixtures", fileName)
 
 test("can infer column references from spread expression", t => {
-  const { queries } = parseSourceFile(
-    loadSourceFile(pathToFixture("column-reference-insert-spread.ts"))
-  )
+  const { queries } = parseSourceFile(loadSourceFile(pathToFixture("insert-spread.ts")))
   const referencedColumns = (queries[0].referencedColumns as UnqualifiedColumnReference[]).map(
     colRef => ({
       tableRefsInScope: colRef.tableRefsInScope.map(tableRef => ({
@@ -38,7 +36,7 @@ test("can infer column references from spread expression", t => {
 
 test("fails on missing column values for INSERT", t => {
   const { queries, tableSchemas } = parseSourceFile(
-    loadSourceFile(pathToFixture("column-reference-insert-value-missing.ts"))
+    loadSourceFile(pathToFixture("insert-value-missing.ts"))
   )
   const error = t.throws(() => queries.forEach(query => validateQuery(query, tableSchemas)))
   t.is(error.name, "ValidationError")
@@ -46,9 +44,7 @@ test("fails on missing column values for INSERT", t => {
 })
 
 test("validates a WITH AS INSERT statement successfully", t => {
-  const { queries, tableSchemas } = parseSourceFile(
-    loadSourceFile(pathToFixture("column-reference-insert-with.ts"))
-  )
+  const { queries, tableSchemas } = parseSourceFile(loadSourceFile(pathToFixture("insert-with.ts")))
   t.notThrows(() => queries.forEach(query => validateQuery(query, tableSchemas)))
 })
 
@@ -73,11 +69,9 @@ test("fails on bad qualified column reference", t => {
 })
 
 test("fails on bad column reference in INSERT", t => {
-  const { queries, tableSchemas } = parseSourceFile(
-    loadSourceFile(pathToFixture("column-reference-insert.ts"))
-  )
+  const { queries, tableSchemas } = parseSourceFile(loadSourceFile(pathToFixture("insert.ts")))
   const error = t.throws(() => queries.forEach(query => validateQuery(query, tableSchemas)))
   t.is(error.name, "ValidationError")
   t.regex(error.message, containsToRegex(`No table in the query's scope has a column "foo".`))
-  t.regex(error.message, containsToRegex(`_fixtures/column-reference-insert.ts:13:31`))
+  t.regex(error.message, containsToRegex(`_fixtures/insert.ts:13:31`))
 })
