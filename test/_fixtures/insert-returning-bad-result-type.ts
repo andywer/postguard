@@ -1,4 +1,4 @@
-import { defineTable, NewTableRow, Schema, TableRow } from "squid/schema"
+import { defineTable, NewTableRow, Schema } from "squid/schema"
 import { spreadInsert, sql } from "squid/pg"
 import { database } from "./_database"
 

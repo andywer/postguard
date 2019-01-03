@@ -9,10 +9,10 @@ import {
   QueryNodePath
 } from "./query-parser-utils"
 import { ColumnReference, Query, SourceFile, TableReference, QuerySourceMapSpan } from "./types"
-import { getProperties } from "./typescript/objectish"
+import { resolvePropertyTypes } from "./typescript/objectish"
 
 interface ExpressionSpreadTypes {
-  [paramID: number]: ReturnType<typeof getProperties> | null
+  [paramID: number]: ReturnType<typeof resolvePropertyTypes> | null
 }
 
 interface QueryContext {
@@ -24,10 +24,14 @@ interface QueryContext {
 
 const $any = Symbol("any")
 
-export const spreadTypeAny: ReturnType<typeof getProperties> = Object.defineProperty({}, $any, {
-  enumerable: false,
-  value: true
-})
+export const spreadTypeAny: ReturnType<typeof resolvePropertyTypes> = Object.defineProperty(
+  {},
+  $any,
+  {
+    enumerable: false,
+    value: true
+  }
+)
 
 const isColumnRef = (node: QueryParser.QueryNode<any>): node is QueryParser.ColumnRef =>
   "ColumnRef" in node
@@ -261,7 +265,7 @@ function getReferencedColumns(
         })
       }
 
-      if (spreadType === spreadTypeAny) {
+      if (spreadType === spreadTypeAny || !spreadType) {
         referencedColumns.push({
           any: true,
           tableRefsInScope: filterDuplicateTableRefs(tableRefsInScope),

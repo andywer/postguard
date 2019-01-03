@@ -1,3 +1,4 @@
+import { Schema, TableSchemaDescriptor } from "squid"
 import ts from "typescript"
 
 const isObjectType = (type: ts.Type): type is ts.ObjectType =>
@@ -36,7 +37,7 @@ function getObjectTypeProperties(
   }, {})
 }
 
-export function getProperties(
+export function resolvePropertyTypes(
   program: ts.Program,
   type: ts.Type
 ): { [key: string]: ts.Type } | null {
@@ -45,7 +46,7 @@ export function getProperties(
       // TODO: Don't just override previous property type
       (reduced, subType) => ({
         ...reduced,
-        ...getProperties(program, subType)
+        ...resolvePropertyTypes(program, subType)
       }),
       {}
     )
@@ -67,4 +68,17 @@ export function getProperties(
     }),
     {}
   )
+}
+
+export function mapPropertyTypesToSchemaDescriptor(propTypes: {
+  [key: string]: ts.Type
+}): TableSchemaDescriptor {
+  // TODO: Map types properly
+  const schema: TableSchemaDescriptor = {}
+
+  for (const key of Object.keys(propTypes)) {
+    schema[key] = Schema.Any
+  }
+
+  return schema
 }

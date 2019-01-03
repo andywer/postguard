@@ -1,16 +1,17 @@
 import { codeFrameColumns, SourceLocation } from "@babel/code-frame"
+import { NodePath } from "@babel/traverse"
+import * as types from "@babel/types"
 import { ParsingError } from "pg-query-parser"
 import * as format from "./format"
-import { Query } from "./parse-file"
 import { QueryNodePath } from "./query-parser-utils"
-import { SourceFile } from "./types"
+import { Query, SourceFile } from "./types"
 
-export interface SyntaxError extends Error {
+interface CodeError extends Error {
   location: SourceLocation
   sourceFile: SourceFile
 }
 
-export interface ValidationError extends Error {
+interface ValidationError extends Error {
   location: SourceLocation
   path: QueryNodePath<any>
   sourceFile: SourceFile
@@ -83,12 +84,12 @@ function mapToSourceLocation(query: Query, stringIndex: number): SourceLocation 
   }
 }
 
-export function isAugmentedError(error: Error | SyntaxError | ValidationError) {
+export function isAugmentedError(error: Error | CodeError | ValidationError) {
   return error.name === "QuerySyntaxError" || error.name === "ValidationError"
 }
 
 export function augmentFileValidationError(
-  error: Error | SyntaxError | ValidationError,
+  error: Error | CodeError | ValidationError,
   query: Query
 ) {
   const location =
@@ -114,7 +115,7 @@ export function augmentQuerySyntaxError(
   error: Error,
   syntaxError: ParsingError,
   query: Query
-): SyntaxError {
+): CodeError {
   // tslint:disable-next-line prefer-object-spread
   return Object.assign(error, {
     name: "QuerySyntaxError",
@@ -138,6 +139,19 @@ export function augmentValidationError(
     name: "ValidationError",
     path,
     location,
+    sourceFile: query.sourceFile
+  })
+}
+
+export function augmentCodeError(
+  error: Error,
+  path: NodePath<types.Node>,
+  query: Query
+): CodeError {
+  // tslint:disable-next-line prefer-object-spread
+  return Object.assign(error, {
+    name: "ValidationError",
+    location: path.node.loc as SourceLocation,
     sourceFile: query.sourceFile
   })
 }

@@ -1,3 +1,4 @@
+import { NodePath } from "@babel/traverse"
 import * as types from "@babel/types"
 import { TableSchemaDescriptor } from "squid"
 import * as ts from "typescript"
@@ -72,4 +73,12 @@ export interface Query {
   sourceFile: SourceFile
   sourceMap: QuerySourceMapSpan[]
   subqueries: Query[]
+}
+
+export interface QueryInvocation {
+  query: Query
+  resultTypeAssertion?: {
+    path: NodePath<types.Node>
+    schema: TableSchemaDescriptor
+  }
 }

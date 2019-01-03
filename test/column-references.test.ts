@@ -9,15 +9,16 @@ const pathToFixture = (fileName: string) => path.join(__dirname, "_fixtures", fi
 
 test("can infer column references from spread expression", t => {
   const { queries } = parseSourceFile(loadSourceFile(pathToFixture("insert-spread.ts")))
-  const referencedColumns = (queries[0].referencedColumns as UnqualifiedColumnReference[]).map(
-    colRef => ({
-      tableRefsInScope: colRef.tableRefsInScope.map(tableRef => ({
-        tableName: tableRef.tableName,
-        as: tableRef.as
-      })),
-      columnName: colRef.columnName
-    })
-  )
+  const referencedColumns = (queries[0].query
+    .referencedColumns as UnqualifiedColumnReference[]).map(colRef => ({
+    tableRefsInScope: colRef.tableRefsInScope
+      ? colRef.tableRefsInScope.map(tableRef => ({
+          tableName: tableRef.tableName,
+          as: tableRef.as
+        }))
+      : colRef.tableRefsInScope,
+    columnName: colRef.columnName
+  }))
   t.deepEqual(referencedColumns, [
     {
       tableRefsInScope: [{ tableName: "users", as: undefined }],

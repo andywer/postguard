@@ -7,7 +7,8 @@ import meow from "meow"
 import * as path from "path"
 import { isAugmentedError } from "./errors"
 import * as format from "./format"
-import { loadSourceFile, parseSourceFile, Query, TableSchema } from "./parse-file"
+import { loadSourceFile, parseSourceFile } from "./parse-file"
+import { QueryInvocation, TableSchema } from "./types"
 import { validateQuery } from "./validation"
 
 const cli = meow(
@@ -55,7 +56,7 @@ function checkSchemasForDuplicates(allTableSchemas: TableSchema[]) {
 }
 
 function run(sourceFilePaths: string[], moreSchemas: TableSchema[] = []) {
-  let allQueries: Query[] = []
+  let allQueries: QueryInvocation[] = []
   let allTableSchemas: TableSchema[] = [...moreSchemas]
 
   sourceFilePaths = sourceFilePaths.map(filePath => path.relative(process.cwd(), filePath))

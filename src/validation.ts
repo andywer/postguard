@@ -1,5 +1,7 @@
+import { NodePath } from "@babel/traverse"
+import * as types from "@babel/types"
 import { Schema, TableSchemaDescriptor } from "squid"
-import { augmentFileValidationError, augmentValidationError } from "./errors"
+import { augmentCodeError, augmentFileValidationError, augmentValidationError } from "./errors"
 import {
   getAllSubqueries,
   resolveColumnReferences,
@@ -10,6 +12,7 @@ import {
   ColumnReference,
   QualifiedColumnReference,
   Query,
+  QueryInvocation,
   TableReference,
   TableSchema,
   UnqualifiedColumnReference
@@ -122,6 +125,35 @@ function resolveColumnRefsToTableSchemaDescriptor(
   return syntheticSchema
 }
 
+function validateQueryMatchesReturnType(
+  resultSchema: TableSchemaDescriptor,
+  expectedResult: TableSchemaDescriptor,
+  path: NodePath<types.Node>,
+  query: Query
+) {
+  const expectedColumnNames = Object.keys(expectedResult)
+  const actualColumnNames = Object.keys(resultSchema)
+
+  const missingColumnNames = expectedColumnNames.filter(
+    expectedColumnName => actualColumnNames.indexOf(expectedColumnName) === -1
+  )
+
+  if (missingColumnNames.length > 0) {
+    const error = new Error(
+      `Query's result does not match the expected result type.\n` +
+        `  Missing columns in result rows: ${missingColumnNames
+          .map(columnName => `"${columnName}"`)
+          .join(", ")}\n` +
+        `  Actual columns in result rows: ${actualColumnNames
+          .map(columnName => `"${columnName}"`)
+          .join(", ")}`
+    )
+    throw augmentCodeError(error, path, query)
+  }
+
+  // TODO: Validate result column types
+}
+
 function resolveSubqueryToTableSchema(
   query: Query & { exposedAsTable: string },
   tables: TableSchema[]
@@ -146,12 +178,37 @@ function validateSubquery(query: Query, tables: TableSchema[]) {
   }
 
   for (const subquery of query.subqueries) {
-    validateQuery(subquery, tables)
+    validateSubquery(subquery, tables)
   }
 }
 
-export function validateQuery(query: Query, tables: TableSchema[]) {
-  const tableExpressions: TableSchema[] = getAllSubqueries(query)
+function validateQueryInvocation(invocation: QueryInvocation, tables: TableSchema[]) {
+  if (
+    !invocation.resultTypeAssertion ||
+    invocation.query.returnedColumns.some(isUnresolvableColumnReference)
+  ) {
+    return
+  }
+
+  try {
+    const resultTypeAssertion = invocation.resultTypeAssertion
+    const resultSchema = resolveColumnRefsToTableSchemaDescriptor(
+      invocation.query.returnedColumns,
+      tables
+    )
+    validateQueryMatchesReturnType(
+      resultSchema,
+      resultTypeAssertion.schema,
+      resultTypeAssertion.path,
+      invocation.query
+    )
+  } catch (error) {
+    throw augmentFileValidationError(error, invocation.query)
+  }
+}
+
+export function validateQuery(invocation: QueryInvocation, tables: TableSchema[]) {
+  const tableExpressions: TableSchema[] = getAllSubqueries(invocation.query)
     .map<TableSchema | null>(subquery =>
       subquery.exposedAsTable
         ? resolveSubqueryToTableSchema(subquery as Query & { exposedAsTable: string }, tables)
@@ -159,5 +216,6 @@ export function validateQuery(query: Query, tables: TableSchema[]) {
     )
     .filter((schemaOrNull): schemaOrNull is TableSchema => schemaOrNull !== null)
 
-  validateSubquery(query, [...tables, ...tableExpressions])
+  validateSubquery(invocation.query, [...tables, ...tableExpressions])
+  validateQueryInvocation(invocation, [...tables, ...tableExpressions])
 }
