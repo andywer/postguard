@@ -1,5 +1,5 @@
-import { defineTable, Schema, TableRow } from "sqldb/schema"
-import { sql, spreadInsert } from "sqldb/pg"
+import { defineTable, Schema, TableRow } from "squid/schema"
+import { sql, spreadInsert } from "squid/pg"
 import { database } from "./_database"
 
 const usersTable = defineTable("users", {

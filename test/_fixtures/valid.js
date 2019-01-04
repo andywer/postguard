@@ -1,5 +1,5 @@
-import { defineTable, Schema } from "sqldb/schema"
-import { sql, spreadInsert } from "sqldb/pg"
+import { defineTable, Schema } from "squid/schema"
+import { sql, spreadInsert } from "squid/pg"
 import { database } from "./database"
 
 defineTable("users", {
