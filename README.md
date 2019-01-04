@@ -8,7 +8,7 @@
 
 Parses source files with [Babel](https://babeljs.io/). Will additionally fire up the [TypeScript](http://www.typescriptlang.org/) compiler to infer and validate the types of template expressions for TypeScript source files. So you get **SQL queries that are type-checked against your code** 😱😱
 
-Use with [sqldb](https://github.com/andywer/sqldb). It provides SQL tagged template strings, auto-escapes dynamic expressions to prevent SQL injections and comes with some syntactic sugar to write short, explicit SQL queries.
+Use with [squid](https://github.com/andywer/squid). It provides SQL tagged template strings, auto-escapes dynamic expressions to prevent SQL injections and comes with some syntactic sugar to write short, explicit SQL queries.
 
 Parses SQL queries with [`pg-query-parser`](npmjs.com/package/pg-query-parser). It is built on `libpg_query`, the actual Postgres query parser implementation.
 
@@ -41,8 +41,8 @@ npx pg-lint src/models/*
 Source:
 
 ```js
-const { defineTable, Schema } = require("sqldb/schema")
-const { sql } = require("sqldb/pg")
+const { defineTable, Schema } = require("squid/schema")
+const { sql } = require("squid/pg")
 
 // The schema definition can be in another file, of course
 defineTable("users", {
@@ -96,8 +96,8 @@ $ pg-lint src/models/user.js
 The sample above, now in TypeScript and as an INSERT:
 
 ```ts
-import { defineTable, Schema, TableRow } from "sqldb/schema"
-import { sql, spreadInsert } from "sqldb/pg"
+import { defineTable, Schema, TableRow } from "squid/schema"
+import { sql, spreadInsert } from "squid/pg"
 
 const usersTable = defineTable("users", {
   id: Schema.Number,
