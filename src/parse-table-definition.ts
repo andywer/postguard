@@ -1,34 +1,29 @@
 import { NodePath } from "@babel/traverse"
 import * as types from "@babel/types"
+import { isDescriptor, resolveColumnDescriptorExpression } from "./babel-resolver"
 import { SourceFile, TableSchema } from "./types"
 
-// TODO: Parse column types as well
+function parseColumnDescriptors(path: NodePath<types.ObjectExpression>) {
+  const columnDescriptors: TableSchema["columnDescriptors"] = {}
+  const resolved = resolveColumnDescriptorExpression(path)
 
-function parseTableColumnsDefinition(path: NodePath<types.ObjectExpression>) {
-  const columnNames = path.get("properties").reduce(
-    (names, property) => {
-      if (!property.isObjectProperty()) {
-        throw property.buildCodeFrameError("Expected object property (no spread or method).")
-      }
-
-      const key = property.get("key")
-      if (Array.isArray(key)) {
-        throw property.buildCodeFrameError("Did not expect property key to be an array.")
-      }
-
-      if (key.isIdentifier()) {
-        return [...names, key.node.name]
-      } else {
-        const name = key.evaluate().value
-        if (!name) throw key.buildCodeFrameError("Cannot resolve property key value (column name).")
-        return [...names, name]
-      }
-    },
-    [] as string[]
-  )
-  return {
-    columnNames
+  if (!resolved || typeof resolved !== "object") {
+    throw path.buildCodeFrameError(
+      `Statically resolved to ${typeof resolved}. Expected it to be an object.`
+    )
   }
+
+  for (const key of Object.keys(resolved)) {
+    const value = resolved[key]
+
+    if (!isDescriptor(value)) {
+      throw path.buildCodeFrameError(`Expected property "${key}" to be a schema descriptor.`)
+    }
+
+    columnDescriptors[key] = value
+  }
+
+  return columnDescriptors
 }
 
 export function parseTableDefinition(
@@ -50,10 +45,12 @@ export function parseTableDefinition(
     throw path.buildCodeFrameError("Second argument to defineTable() must be an object literal.")
   }
 
-  const { columnNames } = parseTableColumnsDefinition(tableColumnDefs)
+  const columnDescriptors = parseColumnDescriptors(tableColumnDefs)
+
   return {
     tableName,
-    columnNames,
+    columnDescriptors,
+    columnNames: Object.keys(columnDescriptors),
     loc: path.node.loc,
     sourceFile
   }

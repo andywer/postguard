@@ -1,7 +1,8 @@
 import { parse, traverse } from "@babel/core"
 import createDebugLogger from "debug"
 import * as fs from "fs"
-import { getReferencedNamedImport } from "./babel-parser-utils"
+import { ColumnDescriptor } from "squid"
+import { getReferencedNamedImport } from "./babel-imports"
 import { fail } from "./errors"
 import { parseQuery } from "./parse-query"
 import { parseTableDefinition } from "./parse-table-definition"
@@ -20,6 +21,23 @@ function compileTypeScript(filePath: string) {
   } catch (error) {
     // tslint:disable-next-line no-console
     console.error(`Compiling TypeScript source file ${filePath} failed: ${error.message}`)
+  }
+}
+
+function stringifyColumnType(descriptor: ColumnDescriptor) {
+  const props: string[] = [
+    descriptor.hasDefault ? "default value" : null,
+    descriptor.nullable ? "nullable" : null
+  ].filter(str => !!str) as string[]
+
+  const propsString = props.length > 0 ? ` (${props.join(", ")})` : ""
+
+  if (descriptor.type === "enum" && descriptor.enum) {
+    return `enum${propsString} [${descriptor.enum.map(value => `'${value}'`).join(", ")}]`
+  } else {
+    return `${descriptor.type}${
+      descriptor.subtype ? `[${descriptor.subtype.type}]` : ""
+    }${propsString}`
   }
 }
 
@@ -79,12 +97,15 @@ export function parseSourceFile(sourceFile: SourceFile) {
     const formattedColumnRefs = query.referencedColumns.map(col =>
       "tableName" in col ? `${col.tableName}.${col.columnName}` : col.columnName
     )
-    debugQueries(
-      `  Query: ${query.query}\n    Referenced columns: ${formattedColumnRefs.join(", ")}`
-    )
+    const referencedColumns = formattedColumnRefs.length > 0 ? formattedColumnRefs.join(", ") : "-"
+    debugQueries(`  Query: ${query.query.trim()}\n    Referenced columns: ${referencedColumns}`)
   }
   for (const table of tableSchemas) {
-    debugTables(`  Table: ${table.tableName}\n    Columns: ${table.columnNames.join(", ")}`)
+    debugTables(`  Table: ${table.tableName}`)
+    for (const columnName of table.columnNames) {
+      const columnType = stringifyColumnType(table.columnDescriptors[columnName])
+      debugTables(`    Column "${columnName}": ${columnType}`)
+    }
   }
 
   return {
