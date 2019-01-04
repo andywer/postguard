@@ -5,14 +5,15 @@ import { ColumnDescriptor } from "squid"
 import { getReferencedNamedImport } from "./babel-imports"
 import { fail } from "./errors"
 import { parseQuery } from "./parse-query"
+import { createQueryInvocation } from "./parse-query-invocation"
 import { parseTableDefinition } from "./parse-table-definition"
-import { Query, SourceFile, TableSchema } from "./types"
+import { getAllSubqueries } from "./query-utils"
+import { ColumnReference, QueryInvocation, SourceFile, TableSchema } from "./types"
 import { compileFiles } from "./typescript/file"
-
-export { Query, TableSchema }
 
 const debugFile = createDebugLogger("pg-lint:file")
 const debugQueries = createDebugLogger("pg-lint:query")
+const debugSubqueries = createDebugLogger("pg-lint:subquery")
 const debugTables = createDebugLogger("pg-lint:table")
 
 function compileTypeScript(filePath: string) {
@@ -22,6 +23,13 @@ function compileTypeScript(filePath: string) {
     // tslint:disable-next-line no-console
     console.error(`Compiling TypeScript source file ${filePath} failed: ${error.message}`)
   }
+}
+
+function formatColumnRefs(columnRefs: ColumnReference[]): string {
+  const formattedColumnRefs = columnRefs.map(col =>
+    "tableName" in col ? `${col.tableName}.${col.columnName}` : col.columnName
+  )
+  return formattedColumnRefs.length > 0 ? formattedColumnRefs.join(", ") : "-"
 }
 
 function stringifyColumnType(descriptor: ColumnDescriptor) {
@@ -61,7 +69,7 @@ export function loadSourceFile(filePath: string): SourceFile {
 
 export function parseSourceFile(sourceFile: SourceFile) {
   debugFile(`Start parsing file ${sourceFile.filePath}`)
-  const queries: Query[] = []
+  const queries: QueryInvocation[] = []
   const tableSchemas: TableSchema[] = []
 
   const ast = parse(sourceFile.fileContent, {
@@ -87,19 +95,33 @@ export function parseSourceFile(sourceFile: SourceFile) {
       const importSpecifier = getReferencedNamedImport(tag, "sql")
       if (!importSpecifier) return
 
-      queries.push(parseQuery(path.get("quasi"), sourceFile))
+      const query = parseQuery(path.get("quasi"), sourceFile)
+      queries.push(createQueryInvocation(query, path, sourceFile))
     }
   })
 
   debugFile(`Parsed file ${sourceFile.filePath}:`)
 
-  for (const query of queries) {
-    const formattedColumnRefs = query.referencedColumns.map(col =>
-      "tableName" in col ? `${col.tableName}.${col.columnName}` : col.columnName
+  for (const invocation of queries) {
+    const query = invocation.query
+    debugQueries(
+      `  Query: ${query.query.trim()}\n` +
+        `    Result columns: ${formatColumnRefs(query.returnedColumns)}\n` +
+        `    Referenced columns: ${formatColumnRefs(query.referencedColumns)}`
     )
-    const referencedColumns = formattedColumnRefs.length > 0 ? formattedColumnRefs.join(", ") : "-"
-    debugQueries(`  Query: ${query.query.trim()}\n    Referenced columns: ${referencedColumns}`)
+
+    for (const subquery of getAllSubqueries(query)) {
+      const returningStatus = subquery.returnsIntoParentQuery ? " (into parent query)" : ""
+      debugSubqueries(
+        `    Subquery type: ${subquery.path.type}\n` +
+          `      Result columns: ${formatColumnRefs(
+            subquery.returnedColumns
+          )}${returningStatus}\n` +
+          `      Referenced columns: ${formatColumnRefs(subquery.referencedColumns)}`
+      )
+    }
   }
+
   for (const table of tableSchemas) {
     debugTables(`  Table: ${table.tableName}`)
     for (const columnName of table.columnNames) {

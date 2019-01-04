@@ -8,14 +8,16 @@ const usersTable = defineTable("users", {
   email: Schema.String
 })
 
+type UserRecord = TableRow<typeof usersTable>
+
 export async function queryUserById(id: string) {
-  const { rows } = await database.query(sql`
+  const { rows } = await database.query<UserRecord>(sql`
     SELECT * FROM users WHERE id = ${id}
   `)
   return rows.length > 0 ? rows[0] : null
 }
 
-export async function createUser(record: TableRow<typeof usersTable>) {
+export async function createUser(record: UserRecord) {
   const { rows } = await database.query(sql`
     INSERT INTO users ${spreadInsert(record)} RETURNING *
   `)

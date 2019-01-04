@@ -201,5 +201,6 @@ declare module "pg-query-parser" {
     stderr?: string
   }
 
-  export function parse(query: string): ParsingResult
+  export function deparse(queries: Query[]): string
+  export function parse(sql: string): ParsingResult
 }

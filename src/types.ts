@@ -1,3 +1,4 @@
+import { NodePath } from "@babel/traverse"
 import * as types from "@babel/types"
 import { TableSchemaDescriptor } from "squid"
 import * as ts from "typescript"
@@ -26,19 +27,32 @@ export interface TableReference {
   path: QueryNodePath<any>
 }
 
+export interface AllOfColumnReference {
+  tableName: string
+  columnName: "*"
+  path: QueryNodePath<any>
+}
+
+// FIXME: The `any?` marker is too unspecific. It's either a columnName or `any` is set.
+
 export interface QualifiedColumnReference {
   tableName: string
   columnName: string
   path: QueryNodePath<any>
+  any?: true
 }
 
 export interface UnqualifiedColumnReference {
   tableRefsInScope: TableReference[]
   columnName: string
   path: QueryNodePath<any>
+  any?: true
 }
 
-export type ColumnReference = QualifiedColumnReference | UnqualifiedColumnReference
+export type ColumnReference =
+  | QualifiedColumnReference
+  | UnqualifiedColumnReference
+  | AllOfColumnReference
 
 export interface QuerySourceMapSpan {
   isTemplateExpression?: boolean
@@ -48,9 +62,23 @@ export interface QuerySourceMapSpan {
 }
 
 export interface Query {
-  sourceFile: SourceFile
-  sourceMap: QuerySourceMapSpan[]
+  type: string
   query: string
+  path: QueryNodePath<any>
+  exposedAsTable?: string
   referencedColumns: ColumnReference[]
   referencedTables: TableReference[]
+  returnedColumns: ColumnReference[]
+  returnsIntoParentQuery?: boolean
+  sourceFile: SourceFile
+  sourceMap: QuerySourceMapSpan[]
+  subqueries: Query[]
+}
+
+export interface QueryInvocation {
+  query: Query
+  resultTypeAssertion?: {
+    path: NodePath<types.Node>
+    schema: TableSchemaDescriptor
+  }
 }

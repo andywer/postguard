@@ -1,16 +1,17 @@
 import { codeFrameColumns, SourceLocation } from "@babel/code-frame"
+import { NodePath } from "@babel/traverse"
+import * as types from "@babel/types"
 import { ParsingError } from "pg-query-parser"
 import * as format from "./format"
-import { Query } from "./parse-file"
 import { QueryNodePath } from "./query-parser-utils"
-import { SourceFile } from "./types"
+import { Query, SourceFile } from "./types"
 
-export interface SyntaxError extends Error {
+interface CodeError extends Error {
   location: SourceLocation
   sourceFile: SourceFile
 }
 
-export interface ValidationError extends Error {
+interface ValidationError extends Error {
   location: SourceLocation
   path: QueryNodePath<any>
   sourceFile: SourceFile
@@ -31,6 +32,18 @@ function formatSourceLink(filePath: string, location?: SourceLocation | null): s
   }
 }
 
+function getLineColumnOffset(text: string, startIndex: number) {
+  const preceedingText = text.substring(0, startIndex)
+
+  const lineOffset = preceedingText.replace(/[^\n]/g, "").length
+  const columnOffset = startIndex - preceedingText.lastIndexOf("\n")
+
+  return {
+    columnOffset,
+    lineOffset
+  }
+}
+
 function getOverallSourceLocation(locations: SourceLocation[]): SourceLocation {
   const first = locations[0]
   const last = locations[locations.length - 1]
@@ -40,8 +53,8 @@ function getOverallSourceLocation(locations: SourceLocation[]): SourceLocation {
       line: first.start.line
     },
     end: {
-      column: last.start.column,
-      line: last.start.line
+      column: last.end ? last.end.column : last.start.column,
+      line: last.end ? last.end.line : last.start.line
     }
   }
 }
@@ -55,30 +68,28 @@ function mapToSourceLocation(query: Query, stringIndex: number): SourceLocation 
   }
 
   const indexInSpan = stringIndex - matchingSpan.queryStartIndex
-  const preceedingTextInSpan = query.query.substring(matchingSpan.queryStartIndex, stringIndex)
+  const textInSpan = query.query.substring(matchingSpan.queryStartIndex, matchingSpan.queryEndIndex)
 
-  const lineIndexInSpan = preceedingTextInSpan.replace(/[^\n]/g, "").length
-  const columnIndexInSpan = matchingSpan.isTemplateExpression
-    ? 1
-    : indexInSpan - preceedingTextInSpan.lastIndexOf("\n")
+  const offsetsInSpan = getLineColumnOffset(textInSpan, indexInSpan)
+  const columnOffsetInSpan = matchingSpan.isTemplateExpression ? 1 : offsetsInSpan.columnOffset
 
   return {
     start: {
       column:
-        lineIndexInSpan > 0
-          ? columnIndexInSpan
-          : matchingSpan.sourceLocation.start.column + columnIndexInSpan,
-      line: matchingSpan.sourceLocation.start.line + lineIndexInSpan
+        offsetsInSpan.lineOffset > 0
+          ? columnOffsetInSpan
+          : matchingSpan.sourceLocation.start.column + columnOffsetInSpan,
+      line: matchingSpan.sourceLocation.start.line + offsetsInSpan.lineOffset
     }
   }
 }
 
-export function isAugmentedError(error: Error | SyntaxError | ValidationError) {
+export function isAugmentedError(error: Error | CodeError | ValidationError) {
   return error.name === "QuerySyntaxError" || error.name === "ValidationError"
 }
 
 export function augmentFileValidationError(
-  error: Error | SyntaxError | ValidationError,
+  error: Error | CodeError | ValidationError,
   query: Query
 ) {
   const location =
@@ -104,7 +115,7 @@ export function augmentQuerySyntaxError(
   error: Error,
   syntaxError: ParsingError,
   query: Query
-): SyntaxError {
+): CodeError {
   // tslint:disable-next-line prefer-object-spread
   return Object.assign(error, {
     name: "QuerySyntaxError",
@@ -128,6 +139,19 @@ export function augmentValidationError(
     name: "ValidationError",
     path,
     location,
+    sourceFile: query.sourceFile
+  })
+}
+
+export function augmentCodeError(
+  error: Error,
+  path: NodePath<types.Node>,
+  query: Query
+): CodeError {
+  // tslint:disable-next-line prefer-object-spread
+  return Object.assign(error, {
+    name: "ValidationError",
+    location: path.node.loc as SourceLocation,
     sourceFile: query.sourceFile
   })
 }
