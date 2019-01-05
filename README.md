@@ -6,7 +6,7 @@
 
 <br />
 
-Parses source files with [Babel](https://babeljs.io/). Will additionally fire up the [TypeScript](http://www.typescriptlang.org/) compiler to infer and validate the types of template expressions for TypeScript source files. So you get **statically typed SQL queries validated against your database schema** 😱😱
+Parses source files with [Babel](https://babeljs.io/) to locate SQL queries and schema definitions. Uses the [TypeScript](http://www.typescriptlang.org/) compiler to infer and validate types for TypeScript source files. Parses and validates the schemas and queries, so you get **statically typed SQL queries validated against your database schema** 😱😱
 
 Use with [squid](https://github.com/andywer/squid). It provides SQL tagged template strings, auto-escapes dynamic expressions to prevent SQL injections and comes with some syntactic sugar to write short, explicit SQL queries.
 
