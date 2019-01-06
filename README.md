@@ -6,11 +6,11 @@
 
 <br />
 
-Parses source files with [Babel](https://babeljs.io/) to locate SQL queries and schema definitions. Validates the queries according to your database schema. Uses the [TypeScript](http://www.typescriptlang.org/) compiler to type-check queries in TypeScript source files, so you get **statically typed SQL queries validated against your database schema** 😱😱
+Locates SQL queries and schema definitions in your source code. Parses the queries, resolving column and table references according to your database schema. Supports type-checking the queries in TypeScript source files, so you get **statically typed SQL queries validated against your database schema** 😱😱
 
 Use with [squid](https://github.com/andywer/squid). It provides SQL tagged template strings, auto-escapes dynamic expressions to prevent SQL injections and comes with some syntactic sugar to write short, explicit SQL queries.
 
-Parses SQL queries with [`pg-query-parser`](npmjs.com/package/pg-query-parser). It is built on `libpg_query`, the actual Postgres query parser implementation.
+Parses SQL queries with `libpg_query`, the actual Postgres query parser implementation. Uses Babel and the TypeScript compiler API to parse the source files.
 
 🦄&nbsp;&nbsp;Validates SQL template strings in code<br />
 🚀&nbsp;&nbsp;Checks SQL queries [syntax and semantics](#validations)<br />
