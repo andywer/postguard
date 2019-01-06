@@ -6,7 +6,7 @@
 
 <br />
 
-Locates SQL queries and schema definitions in your source code. Parses the queries, resolves column and table references, matching them against your database schema. Supports type-checking the queries in TypeScript source files, so you get **statically typed SQL queries validated against your database schema** 😱😱
+Locates SQL queries and schema definitions in your source code. Parses the queries, matching them against your database schema. Supports type-checking the queries in TypeScript source files, so you get **statically typed SQL queries validated against your database schema** 😱😱
 
 Use with [squid](https://github.com/andywer/squid). It provides SQL tagged template strings, auto-escapes dynamic expressions to prevent SQL injections and comes with some syntactic sugar to write short, explicit SQL queries.
 
