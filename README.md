@@ -6,11 +6,11 @@
 
 <br />
 
-Parses source files with [Babel](https://babeljs.io/). Will additionally fire up the [TypeScript](http://www.typescriptlang.org/) compiler to infer and validate the types of template expressions for TypeScript source files. So you get **statically typed SQL queries validated against your database schema** 😱😱
+Locates SQL queries and schema definitions in your source code. Parses the queries, matching them against your database schema. Supports type-checking in TypeScript code, so you get **statically typed SQL queries validated against your database schema** 😱😱
 
 Use with [squid](https://github.com/andywer/squid). It provides SQL tagged template strings, auto-escapes dynamic expressions to prevent SQL injections and comes with some syntactic sugar to write short, explicit SQL queries.
 
-Parses SQL queries with [`pg-query-parser`](npmjs.com/package/pg-query-parser). It is built on `libpg_query`, the actual Postgres query parser implementation.
+Parses SQL queries with `libpg_query`, the actual Postgres query parser implementation. Uses Babel and the TypeScript compiler API to parse the source files.
 
 🦄&nbsp;&nbsp;Validates SQL template strings in code<br />
 🚀&nbsp;&nbsp;Checks SQL queries [syntax and semantics](#validations)<br />
@@ -18,6 +18,8 @@ Parses SQL queries with [`pg-query-parser`](npmjs.com/package/pg-query-parser). 
 ⚡️&nbsp;&nbsp;No additional runtime overhead<br />
 
 ## Usage
+
+Run it like that:
 
 ```sh
 pg-lint src/models/*
@@ -49,7 +51,7 @@ Source:
 const { defineTable, Schema } = require("squid/schema")
 const { sql } = require("squid/pg")
 
-// The schema definition can be in another file, of course
+// Still works if you put the schema in another file
 defineTable("users", {
   id: Schema.Number,
   name: Schema.String,
@@ -101,30 +103,43 @@ $ pg-lint src/models/user.js
 The sample above, now in TypeScript and as an INSERT:
 
 ```ts
-import { defineTable, Schema, TableRow } from "squid/schema"
+import { defineTable, Schema, NewTableRow, TableRow } from "squid/schema"
 import { sql, spreadInsert } from "squid/pg"
 
+type NewUserRecord = NewTableRow<typeof usersTable>
+type UserRecord = TableRow<typeof usersTable>
+
 const usersTable = defineTable("users", {
-  id: Schema.Number,
+  id: Schema.default(Schema.Number),
   name: Schema.String,
   email: Schema.String,
   created_at: Schema.JSON
 })
 
-type UserRecord = TableRow<typeof usersTable>
-
-export async function createUser(record: UserRecord) {
-  const { rows } = await database.query(sql`
-    INSERT INTO users ${spreadInsert(record)} RETURNING *
+export async function createUser(values: NewUserRecord) {
+  const { rows } = await database.query<UserRecord>(sql`
+    INSERT INTO users ${spreadInsert(values)} RETURNING *
   `)
-  return rows[0] as UserRecord
+  return rows[0]
 }
 ```
 
-The `spreadInsert()` helper is also available in JavaScript, but in TypeScript you get some additional benefits:
+In TypeScript you get to enjoy these benefits:
 
-- Type-inference of `spreadInsert(record)`, checking that `record` matches the `users` schema
-- The `UserRecord` type is inferred from the `users` table schema
+- Infers types in `spreadInsert(values)`, checking that `values` contains all required column values
+- Checks that the result columns of the query match the expected result type defined by `database.query<UserRecord>()`
+- The `NewUserRecord` & `UserRecord` types are inferred from the `users` table schema
+
+## Command line options
+
+```
+Usage
+  $ pg-lint ./path/to/source/*.ts
+
+Options
+  --help        Print this help
+  -w, --watch   Watch files and re-evaluate on change
+```
 
 ## Validations
 
@@ -229,17 +244,6 @@ Enter the stage, `pg-lint`. Let's write SQL queries as template strings, concise
 Under the hood it will use Babel to parse the source code, grab those SQL template strings and table schema definitions, parse the templated SQL queries with the actual official Postgres SQL parsing library and then match the whole thing against your table schema.
 
 Finally, statically typed string templates! 🤓
-
-## Command line options
-
-```
-Usage
-  $ pg-lint ./path/to/source/*.ts
-
-Options
-  --help        Print this help
-  -w, --watch   Watch files and re-evaluate on change
-```
 
 ## Debugging
 
