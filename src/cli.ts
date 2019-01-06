@@ -108,7 +108,7 @@ if (watchMode) {
   console.log("\nWatching file changes... Press CTRL + C to cancel.")
 
   chokidar.watch(cli.input, { ignoreInitial: true }).on("all", (event, filePath) => {
-    console.log("\n")
+    console.log(format.gray(`\nRe-running after file changed: ${filePath}\n`))
     const schemasInOtherFiles = schemas.filter(schema => schema.sourceFile.filePath !== filePath)
     const lastRunResult = run([filePath], schemasInOtherFiles)
 
