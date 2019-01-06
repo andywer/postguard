@@ -1,6 +1,6 @@
 import createDebugLogger from "debug"
 import { ColumnDescriptor } from "squid"
-import { getAllSubqueries } from "./query-utils"
+import { getAllSubqueries } from "./utils"
 import { ColumnReference, SourceFile } from "./types"
 import { loadSourceFile, parseSourceFile as parseSourceFileUsingBabel } from "./babel/parse-file"
 

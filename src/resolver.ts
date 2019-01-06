@@ -120,13 +120,6 @@ function resolveStarColumnRef(
   }))
 }
 
-export function getAllSubqueries(query: Query): Query[] {
-  return flatMap(query.subqueries, subquery =>
-    // Order is important here: Deepest first
-    [...getAllSubqueries(subquery), subquery]
-  )
-}
-
 export function resolveToConcreteColumnRefs(
   columnRefs: ColumnReference[],
   tables: TableSchema[]

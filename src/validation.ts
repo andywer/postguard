@@ -2,11 +2,8 @@ import { NodePath } from "@babel/traverse"
 import * as types from "@babel/types"
 import { Schema, TableSchemaDescriptor } from "squid"
 import { augmentCodeError, augmentFileValidationError, augmentValidationError } from "./errors"
-import {
-  getAllSubqueries,
-  resolveColumnReferences,
-  resolveUnqualifiedColumnRef
-} from "./query-utils"
+import { resolveColumnReferences, resolveUnqualifiedColumnRef } from "./resolver"
+import { getAllSubqueries } from "./utils"
 import {
   AllOfColumnReference,
   ColumnReference,
