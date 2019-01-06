@@ -2,7 +2,7 @@ import { NodePath } from "@babel/traverse"
 import * as types from "@babel/types"
 import { TableSchemaDescriptor } from "squid"
 import * as ts from "typescript"
-import { QueryNodePath } from "./query-parser-utils"
+import { QueryNodePath } from "./pg/query-parser-utils"
 
 export interface SourceFile {
   fileContent: string

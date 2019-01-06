@@ -2,11 +2,11 @@ import { NodePath } from "@babel/traverse"
 import * as types from "@babel/types"
 import * as ts from "typescript"
 import { getReferencedNamedImport } from "./babel-imports"
-import * as format from "./format"
-import { parsePostgresQuery, spreadTypeAny } from "./parse-pg-query"
-import { Query, QuerySourceMapSpan, SourceFile } from "./types"
-import { resolveTypeOfBabelPath } from "./typescript/file"
-import { resolvePropertyTypes } from "./typescript/objectish"
+import * as format from "../format"
+import { parsePostgresQuery, spreadTypeAny } from "../pg/parse-pg-query"
+import { Query, QuerySourceMapSpan, SourceFile } from "../types"
+import { resolveTypeOfBabelPath } from "../typescript/file"
+import { resolvePropertyTypes } from "../typescript/objectish"
 
 interface ExpressionSpreadTypes {
   [paramID: number]: ReturnType<typeof resolvePropertyTypes>

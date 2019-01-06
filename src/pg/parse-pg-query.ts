@@ -1,5 +1,7 @@
 import * as QueryParser from "pg-query-parser"
-import { augmentFileValidationError, augmentQuerySyntaxError } from "./errors"
+import { augmentFileValidationError, augmentQuerySyntaxError } from "../errors"
+import { ColumnReference, Query, SourceFile, TableReference, QuerySourceMapSpan } from "../types"
+import { resolvePropertyTypes } from "../typescript/objectish"
 import {
   createQueryNodePath,
   createQueryNodeSubpath,
@@ -8,8 +10,6 @@ import {
   traverseSubTree,
   QueryNodePath
 } from "./query-parser-utils"
-import { ColumnReference, Query, SourceFile, TableReference, QuerySourceMapSpan } from "./types"
-import { resolvePropertyTypes } from "./typescript/objectish"
 
 interface ExpressionSpreadTypes {
   [paramID: number]: ReturnType<typeof resolvePropertyTypes> | null

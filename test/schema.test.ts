@@ -1,6 +1,6 @@
 import test from "ava"
 import * as path from "path"
-import { loadSourceFile, parseSourceFile } from "../src/parse-file"
+import { loadSourceFile, parseSourceFile } from "../src/parser"
 
 const pathToFixture = (fileName: string) => path.join(__dirname, "_fixtures", fileName)
 

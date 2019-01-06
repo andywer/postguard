@@ -7,7 +7,7 @@ import meow from "meow"
 import * as path from "path"
 import { isAugmentedError } from "./errors"
 import * as format from "./format"
-import { loadSourceFile, parseSourceFile } from "./parse-file"
+import { loadSourceFile, parseSourceFile } from "./parser"
 import { QueryInvocation, TableSchema } from "./types"
 import { validateQuery } from "./validation"
 

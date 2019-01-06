@@ -1,6 +1,6 @@
 import test from "ava"
 import * as path from "path"
-import { loadSourceFile, parseSourceFile } from "../src/parse-file"
+import { loadSourceFile, parseSourceFile } from "../src/parser"
 import { UnqualifiedColumnReference } from "../src/types"
 import { validateQuery } from "../src/validation"
 import { containsToRegex } from "./_helpers/assert"

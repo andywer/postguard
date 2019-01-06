@@ -1,7 +1,7 @@
 import { NodePath } from "@babel/traverse"
 import * as types from "@babel/types"
+import { SourceFile, TableSchema } from "../types"
 import { isDescriptor, resolveColumnDescriptorExpression } from "./babel-resolver"
-import { SourceFile, TableSchema } from "./types"
 
 function parseColumnDescriptors(path: NodePath<types.ObjectExpression>) {
   const columnDescriptors: TableSchema["columnDescriptors"] = {}
