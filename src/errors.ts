@@ -3,8 +3,7 @@ import { NodePath } from "@babel/traverse"
 import * as types from "@babel/types"
 import { ParsingError } from "pg-query-parser"
 import * as format from "./format"
-import { QueryNodePath } from "./pg/query-parser-utils"
-import { Query, SourceFile } from "./types"
+import { Query, QueryNodePath, SourceFile } from "./types"
 
 interface CodeError extends Error {
   location: SourceLocation

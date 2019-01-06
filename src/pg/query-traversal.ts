@@ -1,5 +1,5 @@
 import { QueryNode } from "pg-query-parser"
-import * as util from "util"
+import { getNodeType } from "./pg-node-types"
 
 export interface QueryNodePath<Node extends QueryNode<any>> {
   ancestors: Array<QueryNodePath<any>>
@@ -9,20 +9,6 @@ export interface QueryNodePath<Node extends QueryNode<any>> {
 }
 
 const $cancelToken = Symbol("cancel")
-
-export function getNodeType<NodeType extends string>(node: QueryNode<NodeType>): NodeType {
-  const topLevelKeys = Object.keys(node)
-
-  if (topLevelKeys.length !== 1) {
-    throw new Error(
-      `Expected object to be a node and thus have one property with key=<node-type> only. Got keys: ${topLevelKeys.join(
-        ", "
-      )}\n` + `Node: ${util.inspect(node)}`
-    )
-  }
-
-  return topLevelKeys[0] as NodeType
-}
 
 export function createQueryNodePath<Node extends QueryNode<any>>(
   node: Node,
