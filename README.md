@@ -6,7 +6,7 @@
 
 <br />
 
-Locates SQL queries and schema definitions in your source code. Parses the queries, matching them against your database schema. Supports type-checking the queries in TypeScript source files, so you get **statically typed SQL queries validated against your database schema** 😱😱
+Locates SQL queries and schema definitions in your source code. Parses the queries, matching them against your database schema. Supports type-checking in TypeScript code, so you get **statically typed SQL queries validated against your database schema** 😱😱
 
 Use with [squid](https://github.com/andywer/squid). It provides SQL tagged template strings, auto-escapes dynamic expressions to prevent SQL injections and comes with some syntactic sugar to write short, explicit SQL queries.
 
@@ -18,6 +18,8 @@ Parses SQL queries with `libpg_query`, the actual Postgres query parser implemen
 ⚡️&nbsp;&nbsp;No additional runtime overhead<br />
 
 ## Usage
+
+Run it like that:
 
 ```sh
 pg-lint src/models/*
@@ -128,6 +130,17 @@ In TypeScript you get to enjoy these benefits:
 - Checks that the result columns of the query match the expected result type defined by `database.query<UserRecord>()`
 - The `NewUserRecord` & `UserRecord` types are inferred from the `users` table schema
 
+## Command line options
+
+```
+Usage
+  $ pg-lint ./path/to/source/*.ts
+
+Options
+  --help        Print this help
+  -w, --watch   Watch files and re-evaluate on change
+```
+
 ## Validations
 
 #### Checks referenced columns & tables against schema
@@ -231,17 +244,6 @@ Enter the stage, `pg-lint`. Let's write SQL queries as template strings, concise
 Under the hood it will use Babel to parse the source code, grab those SQL template strings and table schema definitions, parse the templated SQL queries with the actual official Postgres SQL parsing library and then match the whole thing against your table schema.
 
 Finally, statically typed string templates! 🤓
-
-## Command line options
-
-```
-Usage
-  $ pg-lint ./path/to/source/*.ts
-
-Options
-  --help        Print this help
-  -w, --watch   Watch files and re-evaluate on change
-```
 
 ## Debugging
 
