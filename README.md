@@ -6,7 +6,7 @@
 
 <br />
 
-Locates SQL queries and schema definitions in your source code. Parses the queries, resolving column and table references according to your database schema. Supports type-checking the queries in TypeScript source files, so you get **statically typed SQL queries validated against your database schema** 😱😱
+Locates SQL queries and schema definitions in your source code. Parses the queries, resolves column and table references, matching them against your database schema. Supports type-checking the queries in TypeScript source files, so you get **statically typed SQL queries validated against your database schema** 😱😱
 
 Use with [squid](https://github.com/andywer/squid). It provides SQL tagged template strings, auto-escapes dynamic expressions to prevent SQL injections and comes with some syntactic sugar to write short, explicit SQL queries.
 
@@ -49,7 +49,7 @@ Source:
 const { defineTable, Schema } = require("squid/schema")
 const { sql } = require("squid/pg")
 
-// The schema definition can be in another file, of course
+// Still works if you put the schema in another file
 defineTable("users", {
   id: Schema.Number,
   name: Schema.String,
@@ -101,30 +101,32 @@ $ pg-lint src/models/user.js
 The sample above, now in TypeScript and as an INSERT:
 
 ```ts
-import { defineTable, Schema, TableRow } from "squid/schema"
+import { defineTable, Schema, NewTableRow, TableRow } from "squid/schema"
 import { sql, spreadInsert } from "squid/pg"
 
+type NewUserRecord = NewTableRow<typeof usersTable>
+type UserRecord = TableRow<typeof usersTable>
+
 const usersTable = defineTable("users", {
-  id: Schema.Number,
+  id: Schema.default(Schema.Number),
   name: Schema.String,
   email: Schema.String,
   created_at: Schema.JSON
 })
 
-type UserRecord = TableRow<typeof usersTable>
-
-export async function createUser(record: UserRecord) {
-  const { rows } = await database.query(sql`
-    INSERT INTO users ${spreadInsert(record)} RETURNING *
+export async function createUser(values: NewUserRecord) {
+  const { rows } = await database.query<UserRecord>(sql`
+    INSERT INTO users ${spreadInsert(values)} RETURNING *
   `)
-  return rows[0] as UserRecord
+  return rows[0]
 }
 ```
 
-The `spreadInsert()` helper is also available in JavaScript, but in TypeScript you get some additional benefits:
+In TypeScript you get to enjoy these benefits:
 
-- Type-inference of `spreadInsert(record)`, checking that `record` matches the `users` schema
-- The `UserRecord` type is inferred from the `users` table schema
+- Infers types in `spreadInsert(values)`, checking that `values` contains all required column values
+- Checks that the result columns of the query match the expected result type defined by `database.query<UserRecord>()`
+- The `NewUserRecord` & `UserRecord` types are inferred from the `users` table schema
 
 ## Validations
 
