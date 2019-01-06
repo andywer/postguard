@@ -1,10 +1,10 @@
 import { NodePath } from "@babel/traverse"
 import * as types from "@babel/types"
 import ts from "typescript"
-import * as format from "./format"
-import { Query, QueryInvocation, SourceFile } from "./types"
-import { resolveTypeOfBabelPath } from "./typescript/file"
-import { mapPropertyTypesToSchemaDescriptor, resolvePropertyTypes } from "./typescript/objectish"
+import * as format from "../format"
+import { Query, QueryInvocation, SourceFile } from "../types"
+import { resolveTypeOfBabelPath } from "../typescript/file"
+import { mapPropertyTypesToSchemaDescriptor, resolvePropertyTypes } from "../typescript/objectish"
 
 function resolveTypeParamPropTypes(
   typeParameters: NodePath<types.TSTypeParameterInstantiation | null>,

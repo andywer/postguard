@@ -2,7 +2,6 @@ import { NodePath } from "@babel/traverse"
 import * as types from "@babel/types"
 import { TableSchemaDescriptor } from "squid"
 import * as ts from "typescript"
-import { QueryNodePath } from "./query-parser-utils"
 
 export interface SourceFile {
   fileContent: string
@@ -59,6 +58,13 @@ export interface QuerySourceMapSpan {
   sourceLocation: types.SourceLocation
   queryStartIndex: number
   queryEndIndex: number
+}
+
+export interface QueryNodePath<Node extends any> {
+  ancestors: Array<QueryNodePath<any>>
+  node: Node
+  parentPropKey: string
+  type: string
 }
 
 export interface Query {

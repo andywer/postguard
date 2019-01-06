@@ -1,29 +1,15 @@
-import { parse, traverse } from "@babel/core"
 import createDebugLogger from "debug"
-import * as fs from "fs"
 import { ColumnDescriptor } from "squid"
-import { getReferencedNamedImport } from "./babel-imports"
-import { fail } from "./errors"
-import { parseQuery } from "./parse-query"
-import { createQueryInvocation } from "./parse-query-invocation"
-import { parseTableDefinition } from "./parse-table-definition"
-import { getAllSubqueries } from "./query-utils"
-import { ColumnReference, QueryInvocation, SourceFile, TableSchema } from "./types"
-import { compileFiles } from "./typescript/file"
+import { getAllSubqueries } from "./utils"
+import { ColumnReference, SourceFile } from "./types"
+import { loadSourceFile, parseSourceFile as parseSourceFileUsingBabel } from "./babel/parse-file"
+
+export { loadSourceFile }
 
 const debugFile = createDebugLogger("pg-lint:file")
 const debugQueries = createDebugLogger("pg-lint:query")
 const debugSubqueries = createDebugLogger("pg-lint:subquery")
 const debugTables = createDebugLogger("pg-lint:table")
-
-function compileTypeScript(filePath: string) {
-  try {
-    return compileFiles([filePath])
-  } catch (error) {
-    // tslint:disable-next-line no-console
-    console.error(`Compiling TypeScript source file ${filePath} failed: ${error.message}`)
-  }
-}
 
 function formatColumnRefs(columnRefs: ColumnReference[]): string {
   const formattedColumnRefs = columnRefs.map(col =>
@@ -49,56 +35,9 @@ function stringifyColumnType(descriptor: ColumnDescriptor) {
   }
 }
 
-export function loadSourceFile(filePath: string): SourceFile {
-  const fileContent = fs.readFileSync(filePath, "utf8")
-  const program = filePath.endsWith(".ts") ? compileTypeScript(filePath) : undefined
-
-  return {
-    fileContent,
-    filePath,
-    ts: program
-      ? {
-          program,
-          sourceFile:
-            program.getSourceFile(filePath) ||
-            fail(`Cannot retrieve source file ${filePath} from compiled TypeScript sources.`)
-        }
-      : undefined
-  }
-}
-
 export function parseSourceFile(sourceFile: SourceFile) {
   debugFile(`Start parsing file ${sourceFile.filePath}`)
-  const queries: QueryInvocation[] = []
-  const tableSchemas: TableSchema[] = []
-
-  const ast = parse(sourceFile.fileContent, {
-    filename: sourceFile.filePath,
-    plugins: sourceFile.ts ? ["@babel/plugin-transform-typescript"] : [],
-    sourceType: "unambiguous"
-  })
-
-  traverse(ast as any, {
-    CallExpression(path) {
-      const callee = path.get("callee")
-      if (!callee.isIdentifier()) return
-
-      const importSpecifier = getReferencedNamedImport(callee, "defineTable")
-      if (!importSpecifier) return
-
-      tableSchemas.push(parseTableDefinition(path, sourceFile))
-    },
-    TaggedTemplateExpression(path) {
-      const tag = path.get("tag")
-      if (!tag.isIdentifier()) return
-
-      const importSpecifier = getReferencedNamedImport(tag, "sql")
-      if (!importSpecifier) return
-
-      const query = parseQuery(path.get("quasi"), sourceFile)
-      queries.push(createQueryInvocation(query, path, sourceFile))
-    }
-  })
+  const { queries, tableSchemas } = parseSourceFileUsingBabel(sourceFile)
 
   debugFile(`Parsed file ${sourceFile.filePath}:`)
 
@@ -130,8 +69,5 @@ export function parseSourceFile(sourceFile: SourceFile) {
     }
   }
 
-  return {
-    queries,
-    tableSchemas
-  }
+  return { queries, tableSchemas }
 }
