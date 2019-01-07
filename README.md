@@ -15,12 +15,11 @@ Locates SQL template strings and schema definitions in your code. Evaluates the 
 
 Use with [squid](https://github.com/andywer/squid). It provides SQL tagged template strings, auto-escapes dynamic expressions to prevent SQL injections and comes with some syntactic sugar to write short, explicit SQL queries.
 
-Parses SQL queries with `libpg_query`, the actual Postgres query parser implementation. Uses Babel and the TypeScript compiler API to parse the source files.
-
 🦄&nbsp;&nbsp;Validates SQL template strings in code<br />
 🚀&nbsp;&nbsp;Checks SQL queries [syntax and semantics](#validations)<br />
-🔍&nbsp;&nbsp;Runs statically, before any code has run<br />
-⚡️&nbsp;&nbsp;No additional runtime overhead<br />
+⚡️&nbsp;&nbsp;Works statically, without additional runtime overhead<br />
+⚙️&nbsp;&nbsp;Built on top of Babel, TypeScript<br />
+🛠&nbsp;&nbsp;Uses `libpg_query`, the actual Postgres SQL parser<br />
 
 ---
 
