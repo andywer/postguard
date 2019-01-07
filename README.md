@@ -4,6 +4,11 @@
   <b>Validate SQL queries in JavaScript and TypeScript code against your schema at build time 🚀</b>
 </p>
 
+<p align="center">
+  <a href="https://travis-ci.org/andywer/pg-lint"><img alt="Build status" src="https://travis-ci.org/andywer/pg-lint.svg?branch=master" /></a>
+  <a href="https://www.npmjs.com/package/pg-lint"><img alt="npm version" src="https://img.shields.io/npm/v/pg-lint.svg" /></a>
+</p>
+
 <br />
 
 Locates SQL template strings and schema definitions in your code. Evaluates the queries, matching them against your database schema. Supports type-checking via TypeScript, so you get **statically typed SQL queries validated against your database schema** 😱😱
