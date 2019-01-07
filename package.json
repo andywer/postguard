@@ -4,6 +4,7 @@
   "description": "Lint Postgres SQL queries in JS / TS source code against schema definitions.",
   "bin": "dist/cli.js",
   "scripts": {
+    "prebuild": "rimraf dist/",
     "build": "tsc",
     "test": "ava",
     "posttest": "prettier --list-different 'src/**' && tslint --project ."
@@ -44,6 +45,7 @@
     "pg": "^7.7.1",
     "prettier": "1.15.3",
     "pretty-quick": "^1.8.0",
+    "rimraf": "^2.6.3",
     "ts-node": "^7.0.1",
     "tslint": "^5.11.0",
     "tslint-config-prettier": "^1.17.0"
