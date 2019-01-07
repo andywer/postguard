@@ -151,9 +151,7 @@ function getReferencedColumns(
   return referencedColumns
 }
 
-export function getStatementReturningColumns(
-  statement: QueryNodePath<QueryParser.Query>
-): ColumnReference[] {
+function getReturningColumns(statement: QueryNodePath<QueryParser.Query>): ColumnReference[] {
   const body = (statement.node as any)[statement.type]
 
   const relationRefs = getTableReferences(statement, false)
@@ -179,7 +177,7 @@ function instantiateQuery(path: QueryNodePath<QueryParser.Query>, context: Query
     path: tableRef
   }))
 
-  const returnedColumns = getStatementReturningColumns(path)
+  const returnedColumns = getReturningColumns(path)
 
   const subqueries: Query[] = getSubqueries(path).map(subqueryPath =>
     instantiateQuery(subqueryPath, context)
