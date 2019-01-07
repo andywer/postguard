@@ -4,22 +4,43 @@
   <b>Validate SQL queries in JavaScript and TypeScript code against your schema at build time 🚀</b>
 </p>
 
+<p align="center">
+  <a href="https://travis-ci.org/andywer/pg-lint"><img alt="Build status" src="https://travis-ci.org/andywer/pg-lint.svg?branch=master" /></a>
+  <a href="https://www.npmjs.com/package/pg-lint"><img alt="npm version" src="https://img.shields.io/npm/v/pg-lint.svg" /></a>
+</p>
+
 <br />
 
-Locates SQL queries and schema definitions in your source code. Parses the queries, matching them against your database schema. Supports type-checking in TypeScript code, so you get **statically typed SQL queries validated against your database schema** 😱😱
+Locates SQL template strings and schema definitions in your code. Evaluates the queries, matching them against your database schema. Supports type-checking via TypeScript, so you get **statically typed SQL queries validated against your database schema** 😱😱
 
 Use with [squid](https://github.com/andywer/squid). It provides SQL tagged template strings, auto-escapes dynamic expressions to prevent SQL injections and comes with some syntactic sugar to write short, explicit SQL queries.
 
-Parses SQL queries with `libpg_query`, the actual Postgres query parser implementation. Uses Babel and the TypeScript compiler API to parse the source files.
-
 🦄&nbsp;&nbsp;Validates SQL template strings in code<br />
 🚀&nbsp;&nbsp;Checks SQL queries [syntax and semantics](#validations)<br />
-🔍&nbsp;&nbsp;Runs statically, before any code has run<br />
-⚡️&nbsp;&nbsp;No additional runtime overhead<br />
+⚡️&nbsp;&nbsp;Works statically, without additional runtime overhead<br />
+⚙️&nbsp;&nbsp;Built on top of Babel, TypeScript<br />
+🛠&nbsp;&nbsp;Uses `libpg_query`, the actual Postgres SQL parser<br />
 
-## Usage
+---
 
-Run it like that:
+<br />
+
+<p align="center">
+  <img alt="Screencast" src="./docs/screencast.gif" width="80%" />
+</p>
+
+## Installation
+
+```sh
+npm install --save-dev pg-lint
+
+# or using yarn:
+yarn add --dev pg-lint
+```
+
+## CLI
+
+Run the tool like this:
 
 ```sh
 pg-lint src/models/*
@@ -31,104 +52,11 @@ You can use `--watch` to watch for file changes:
 pg-lint --watch src/models/*
 ```
 
-We can use npm's [npx tool](https://blog.npmjs.org/post/162869356040/introducing-npx-an-npm-package-runner) to run the locally installed puppet-run program seamlessly:
+We can use npm's [npx tool](https://blog.npmjs.org/post/162869356040/introducing-npx-an-npm-package-runner) to run the locally installed package:
 
 ```sh
 npx pg-lint src/models/*
 ```
-
-<br />
-
-<p align="center">
-  <img alt="Screencast" src="./docs/screencast.gif" width="80%" />
-</p>
-
-## Example
-
-Source:
-
-```js
-const { defineTable, Schema } = require("squid/schema")
-const { sql } = require("squid/pg")
-
-// Still works if you put the schema in another file
-defineTable("users", {
-  id: Schema.Number,
-  name: Schema.String,
-  email: Schema.String,
-  created_at: Schema.JSON
-})
-
-async function queryUserById(id) {
-  const { rows } = await database.query(sql`
-    SELECT * FROM users WHERE ix = ${id}
-  `)
-  return rows.length > 0 ? rows[0] : null
-}
-
-module.exports = {
-  queryUserById
-}
-```
-
-```
-$ pg-lint src/models/user.js
-✖ Query validation failed in ./test.ts:10:44:
-
-  No table in the query's scope has a column "ix":
-
-> 1 | SELECT * FROM users WHERE ix = $1
-    |                           ^
-```
-
-Now let's fix the issue:
-
-```diff
-  export async function queryUserById (id) {
-    const { rows } = await database.query(sql`
--     SELECT * FROM users WHERE ix = ${id}
-+     SELECT * FROM users WHERE id = ${id}
-    `)
-  return rows.length > 0 ? rows[0] : null
-}
-```
-
-```
-$ pg-lint src/models/user.js
-✔ Validated 1 queries against 1 table schemas. All fine!
-```
-
-## TypeScript
-
-The sample above, now in TypeScript and as an INSERT:
-
-```ts
-import { defineTable, Schema, NewTableRow, TableRow } from "squid/schema"
-import { sql, spreadInsert } from "squid/pg"
-
-type NewUserRecord = NewTableRow<typeof usersTable>
-type UserRecord = TableRow<typeof usersTable>
-
-const usersTable = defineTable("users", {
-  id: Schema.default(Schema.Number),
-  name: Schema.String,
-  email: Schema.String,
-  created_at: Schema.JSON
-})
-
-export async function createUser(values: NewUserRecord) {
-  const { rows } = await database.query<UserRecord>(sql`
-    INSERT INTO users ${spreadInsert(values)} RETURNING *
-  `)
-  return rows[0]
-}
-```
-
-In TypeScript you get to enjoy these benefits:
-
-- Infers types in `spreadInsert(values)`, checking that `values` contains all required column values
-- Checks that the result columns of the query match the expected result type defined by `database.query<UserRecord>()`
-- The `NewUserRecord` & `UserRecord` types are inferred from the `users` table schema
 
 ## Command line options
 
@@ -141,95 +69,16 @@ Options
   -w, --watch   Watch files and re-evaluate on change
 ```
 
-## Validations
+## Guide
 
-#### Checks referenced columns & tables against schema
-
-```
-  No table in the query's scope has a column "if".
-  Tables in scope: "users"
-
-  12 | export async function queryUserByID (id: number) {
-  13 |   const { rows } = await database.query<UserRecord>(sql`
-> 14 |     SELECT * FROM users WHERE if = ${id}
-     |                               ^
-  15 |   `)
-  16 |   return rows.length > 0 ? rows[0] : null
-  17 | }
-```
-
-#### Checks INSERT query values for completeness
-
-```
-  Column "email" is missing from INSERT statement.
-
-   4 |
-   5 | export async function createUser (name: string) {
->  6 |   const { rows } = await database.query<NewUserRecord>(sql`
-     |                                                           ^
->  7 |     INSERT INTO users (name) VALUES (${name}) RETURNING *
-     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
->  8 |   `)
-     | ^^
-   9 |   return rows[0]
-  10 | }
-  11 |
-```
-
-#### Checks spread expression types (TypeScript only)
-
-```
-  Column "email" is missing from INSERT statement.
-
-   4 |
-   5 | export async function createUser (newUser: { name: string }) {
->  6 |   const { rows } = await database.query<NewUserRecord>(sql`
-     |                                                           ^
->  7 |     INSERT INTO users ${spreadInsert(newUser)} RETURNING *
-     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
->  8 |   `)
-     | ^^
-   9 |   return rows[0]
-  10 | }
-  11 |
-```
-
-#### Checks query result columns against type (TypeScript only)
-
-```
-  Query's result does not match the expected result type.
-    Missing columns in result rows: "created_at"
-    Actual columns in result rows: "id", "name", "email"
-
-  11 |
-  12 | export async function queryUserByID (id: number) {
-> 13 |   const { rows } = await database.query<UserRecord>(sql`
-     |                                        ^^^^^^^^^^^^
-  14 |     SELECT id, name, email FROM users WHERE id = ${id}
-  15 |   `)
-  16 |   return rows.length > 0 ? rows[0] : null
-```
-
-#### Catches SQL syntax errors
-
-```
-  Syntax error in SQL query.
-  Substituted query: INSERT users SELECT $1 RETURNING *
-
-   5 | export async function createUser (newUser: NewUserRecord) {
-   6 |   const { rows } = await database.query<NewUserRecord>(sql`
->  7 |     INSERT users ${spreadInsert(newUser)} RETURNING *
-     |            ^
-   8 |   `)
-   9 |   return rows[0]
-  10 | }
-```
+- **[Usage](./docs/usage.md)** - Hands-on examples how to use the tool
+- **[Validations](./docs/validations.md)** - List of validations that will be performed
 
 ## Motivation
 
 More and more people are fed up with ORMs, me included. ORMs emphasize inefficient queries and they implement a questionable mindset of using mutable copies of potentially stale remote data as the basis of everything, instead of encouraging atomic updates on the database.
 
-The problem, it seems, has always been the tooling. Here are your options:
+The problem, as it seems, has always been the tooling. Here are your options:
 
 - ORMs - Very popular, but potentially a foot gun in the long run (see above)
 - Query builders - Like ORMs, but functional & immutable; an additional layer (and potential source of errors) on top of the SQL queries
