@@ -6,10 +6,10 @@ import { loadSourceFile, parseSourceFile as parseSourceFileUsingBabel } from "./
 
 export { loadSourceFile }
 
-const debugFile = createDebugLogger("pg-lint:file")
-const debugQueries = createDebugLogger("pg-lint:query")
-const debugSubqueries = createDebugLogger("pg-lint:subquery")
-const debugTables = createDebugLogger("pg-lint:table")
+const debugFile = createDebugLogger("postguard:file")
+const debugQueries = createDebugLogger("postguard:query")
+const debugSubqueries = createDebugLogger("postguard:subquery")
+const debugTables = createDebugLogger("postguard:table")
 
 function formatColumnRefs(columnRefs: ColumnReference[]): string {
   const formattedColumnRefs = columnRefs.map(col =>

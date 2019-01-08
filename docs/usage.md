@@ -29,7 +29,7 @@ module.exports = {
 ```
 
 ```
-$ pg-lint src/models/user.js
+$ postguard src/models/user.js
 ✖ Query validation failed in ./test.ts:10:44:
 
   No table in the query's scope has a column "ix":
@@ -51,7 +51,7 @@ Now let's fix the issue:
 ```
 
 ```
-$ pg-lint src/models/user.js
+$ postguard src/models/user.js
 ✔ Validated 1 queries against 1 table schemas. All fine!
 ```
 
