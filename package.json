@@ -11,6 +11,7 @@
   },
   "author": "Andy Wermke <andy@dev.next-step-software.com>",
   "license": "GPL-3.0",
+  "repository": "andywer/postguard",
   "dependencies": {
     "@babel/code-frame": "^7.0.0",
     "@babel/core": "^7.2.2",
