@@ -18,7 +18,7 @@ Use with [squid](https://github.com/andywer/squid). It provides SQL tagged templ
 🦄&nbsp;&nbsp;Validates SQL template strings in code<br />
 🚀&nbsp;&nbsp;Checks SQL queries [syntax and semantics](#validations)<br />
 ⚡️&nbsp;&nbsp;Works statically, without additional runtime overhead<br />
-⚙️&nbsp;&nbsp;Built on top of Babel, TypeScript<br />
+⚙️&nbsp;&nbsp;Built on top of Babel & TypeScript<br />
 🛠&nbsp;&nbsp;Uses `libpg_query`, the actual Postgres SQL parser<br />
 
 ---
@@ -46,12 +46,6 @@ Run the tool like this:
 pg-lint src/models/*
 ```
 
-You can use `--watch` to watch for file changes:
-
-```sh
-pg-lint --watch src/models/*
-```
-
 We can use npm's [npx tool](https://blog.npmjs.org/post/162869356040/introducing-npx-an-npm-package-runner) to run the locally installed package:
 
 ```sh
@@ -76,23 +70,144 @@ Options
 
 ## Motivation
 
-More and more people are fed up with ORMs, me included. ORMs emphasize inefficient queries and they implement a questionable mindset of using mutable copies of potentially stale remote data as the basis of everything, instead of encouraging atomic updates on the database.
+Let's quickly compare the options you got when writing code that uses a relational database.
 
-The problem, as it seems, has always been the tooling. Here are your options:
+Our sample use case is updating project rows that are owned by a certain user.
 
-- ORMs - Very popular, but potentially a foot gun in the long run (see above)
-- Query builders - Like ORMs, but functional & immutable; an additional layer (and potential source of errors) on top of the SQL queries
-- Plain SQL - Total control and transparency, but string-based; thus they could never be reasoned about at build time and queries are potentially quite verbose (many columns mean very verbose, dull INSERT statements)
+### Plain SQL
 
-Having worked with ORMs and different database technologies for a couple of years, I finally decided to stray away, cut out the middleman and go back to plain SQL queries.
+Sample:
 
-It did save me some headaches I had before, but it also required me to maintain a very high test coverage, since there is no confidence in those text queries unless you actually run them. Jumping out of the frying pan into the fire... Yet, the overall approach felt right. **If there was just a way to catch errors in those SQL queries at compile time.**
+<!-- prettier-ignore-start -->
+```js
+const { rows } = await database.query(`
+  UPDATE projects SET
+    last_opened = NOW(),
+    open_count = open_count + 1
+  WHERE
+    projects.id IN (
+      SELECT project_id FROM project_members WHERE user_id = $1
+    )
+  RETURNING *
+`,
+  [ userId ]
+)
+```
+<!-- prettier-ignore-end -->
 
-Enter the stage, `pg-lint`. Let's write SQL queries as template strings, concise, yet explicit, and evaluate them at build time. Even with type inference for TypeScript code!
+Pro:
 
-Under the hood it will use Babel to parse the source code, grab those SQL template strings and table schema definitions, parse the templated SQL queries with the actual official Postgres SQL parsing library and then match the whole thing against your table schema.
+- Efficient queries
+- Explicit - No magic, full control
+- Functional stateless data flow, atomic updates
 
-Finally, statically typed string templates! 🤓
+Con:
+
+- Very easy to make mistakes
+- No way of telling if correct unless code is run
+- Can be quite verbose
+- Requires knowledge about SQL & your database
+- No type safety
+
+### ORMs (Sequelize, TypeORM, ...)
+
+Sample:
+
+```js
+// (Model definitions not included)
+
+const user = await User.findById(userId)
+const projects = await user.getProjects()
+
+const updatedProjects = await Promise.all(
+  projects.map(async project => {
+    project.last_opened = new Date(Date.now())
+    project.open_count++
+    return project.save()
+  })
+)
+```
+
+Pro:
+
+- Easy to get started
+- Type-safety
+- Less error-prone than writing raw SQL
+- Requires no SQL knowledge
+
+Con:
+
+- Implicit - Actual database queries barely visible
+- Usually leads to inefficient queries
+- Update operations based on potentially stale local data
+- Virtually limits you to a primitive subset of your database's features
+
+### Query builder (Knex.js, Prisma, ...)
+
+Sample:
+
+```js
+// (Model definitions not included)
+
+const usersProjects = await prisma.user({ id: userId }).projects()
+
+const updatedProjects = await Promise.all(
+  projects.map(project =>
+    prisma.updateProject({
+      data: {
+        last_opened: new Date(Date.now()),
+        open_count: project.open_count + 1
+      },
+      where: {
+        id: project.id
+      }
+    })
+  )
+)
+```
+
+Pro:
+
+- Explicit - Full control over queries
+- Functional stateless data flow
+- Type-safety
+
+Con:
+
+- Additional abstraction layer with its own API
+- Atomic updates still hardly possible
+- Requires knowledge about both, SQL & your database plus the query builder API
+
+### SQL with squid & pg-lint 🚀
+
+Sample:
+
+```ts
+// (Schema definition not included)
+
+const { rows } = await database.query<ProjectRecord>(sql`
+  UPDATE projects SET
+    last_opened = NOW(),
+    open_count = open_count + 1
+  WHERE
+    projects.id IN (
+      SELECT project_id FROM project_members WHERE user_id = ${userId}
+    )
+  RETURNING *
+`)
+```
+
+Pro:
+
+- Explicit - Full control, no implicit magic
+- Fast due to absence of abstraction layers
+- Functional stateless data flow, atomic updates
+- Full query validation at build time
+- Type-safety
+
+Con:
+
+- Requires knowledge about SQL & your database
 
 ## Debugging
 
