@@ -14,7 +14,7 @@ import { validateQuery } from "./validation"
 const cli = meow(
   `
   Usage
-    $ pg-lint ./path/to/source/*.ts
+    $ postguard ./path/to/source/*.ts
 
   Options
     --help        Print this help

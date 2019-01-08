@@ -1,12 +1,12 @@
-<h1 align="center">pg-lint</h1>
+<h1 align="center">postguard</h1>
 
 <p align="center">
   <b>Validate SQL queries in JavaScript and TypeScript code against your schema at build time 🚀</b>
 </p>
 
 <p align="center">
-  <a href="https://travis-ci.org/andywer/pg-lint"><img alt="Build status" src="https://travis-ci.org/andywer/pg-lint.svg?branch=master" /></a>
-  <a href="https://www.npmjs.com/package/pg-lint"><img alt="npm version" src="https://img.shields.io/npm/v/pg-lint.svg" /></a>
+  <a href="https://travis-ci.org/andywer/postguard"><img alt="Build status" src="https://travis-ci.org/andywer/postguard.svg?branch=master" /></a>
+  <a href="https://www.npmjs.com/package/postguard"><img alt="npm version" src="https://img.shields.io/npm/v/postguard.svg" /></a>
 </p>
 
 <br />
@@ -32,10 +32,10 @@ Use with [squid](https://github.com/andywer/squid). It provides SQL tagged templ
 ## Installation
 
 ```sh
-npm install --save-dev pg-lint
+npm install --save-dev postguard
 
 # or using yarn:
-yarn add --dev pg-lint
+yarn add --dev postguard
 ```
 
 ## CLI
@@ -43,20 +43,20 @@ yarn add --dev pg-lint
 Run the tool like this:
 
 ```sh
-pg-lint src/models/*
+postguard src/models/*
 ```
 
 We can use npm's [npx tool](https://blog.npmjs.org/post/162869356040/introducing-npx-an-npm-package-runner) to run the locally installed package:
 
 ```sh
-npx pg-lint src/models/*
+npx postguard src/models/*
 ```
 
 ## Command line options
 
 ```
 Usage
-  $ pg-lint ./path/to/source/*.ts
+  $ postguard ./path/to/source/*.ts
 
 Options
   --help        Print this help
@@ -178,7 +178,7 @@ Con:
 - Atomic updates still hardly possible
 - Requires knowledge about both, SQL & your database plus the query builder API
 
-### SQL with squid & pg-lint 🚀
+### SQL with squid & postguard 🚀
 
 Sample:
 
@@ -211,11 +211,11 @@ Con:
 
 ## Debugging
 
-Set the environment variable `DEBUG` to `pg-lint:*` to enable debug logging. You can also narrow debug logging down by setting `DEBUG` to `pg-lint:table` or `pg-lint:query`, for instance.
+Set the environment variable `DEBUG` to `postguard:*` to enable debug logging. You can also narrow debug logging down by setting `DEBUG` to `postguard:table` or `postguard:query`, for instance.
 
 ## Questions? Feedback?
 
-Feedback is welcome, as always. Feel free to comment what's on your mind 👉 [here](https://github.com/andywer/pg-lint/issues/1).
+Feedback is welcome, as always. Feel free to comment what's on your mind 👉 [here](https://github.com/andywer/postguard/issues/1).
 
 ## License
 

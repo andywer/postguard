@@ -1,7 +1,7 @@
 {
-  "name": "pg-lint",
+  "name": "postguard",
   "version": "0.0.0",
-  "description": "Lint Postgres SQL queries in JS / TS source code against schema definitions.",
+  "description": "Validate Postgres SQL queries in source code against your schema at build time.",
   "bin": "dist/cli.js",
   "scripts": {
     "prebuild": "rimraf dist/",
