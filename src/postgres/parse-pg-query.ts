@@ -224,10 +224,12 @@ export function parsePostgresQuery(
     const fakePath = createQueryNodePath({ SelectStmt: { op: 0 } }, [], "")
     const query = instantiateQuery(fakePath, context)
     const message = `Syntax error in SQL query.\nSubstituted query: ${queryString.trim()}`
-    reportDiagnostic(
-      createQueryDiagnostic(DiagnosticType.error, message, query, result.error.cursorPosition - 1)
+    throw createQueryDiagnostic(
+      DiagnosticType.error,
+      message,
+      query,
+      result.error.cursorPosition - 1
     )
-    return query
   }
 
   const parsedQuery = result.query[0]

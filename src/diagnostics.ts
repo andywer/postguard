@@ -18,6 +18,20 @@ export interface Diagnostic {
   type: DiagnosticType
 }
 
+export function isSourceFile(thing: any): thing is SourceFile {
+  return thing && typeof thing === "object" && thing.filePath && thing.fileContent
+}
+
+export function isDiagnostic(thing: any): thing is Diagnostic {
+  return (
+    thing &&
+    typeof thing === "object" &&
+    thing.type &&
+    thing.message &&
+    isSourceFile(thing.sourceFile)
+  )
+}
+
 function getLineColumnOffset(text: string, startIndex: number) {
   const preceedingText = text.substring(0, startIndex)
 
@@ -156,9 +170,9 @@ export function printDiagnostic(diagnostic: Diagnostic) {
   const formattedMessage = formatDiagnostic(diagnostic)
 
   if (diagnostic.type === DiagnosticType.warning) {
-    console.warn(`${logSymbols.warning} ${formattedMessage}`)
+    console.warn(`\n${logSymbols.warning} ${formattedMessage}`)
   } else {
-    console.error(`${logSymbols.error} ${formattedMessage}`)
+    console.error(`\n${logSymbols.error} ${formattedMessage}`)
   }
 }
 

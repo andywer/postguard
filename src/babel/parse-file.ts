@@ -1,6 +1,11 @@
 import { parse, traverse } from "@babel/core"
 import * as fs from "fs"
-import { createSourceFileDiagnostic, reportDiagnostic, DiagnosticType } from "../diagnostics"
+import {
+  createSourceFileDiagnostic,
+  isDiagnostic,
+  reportDiagnostic,
+  DiagnosticType
+} from "../diagnostics"
 import { QueryInvocation, SourceFile, TableSchema } from "../types"
 import { compileFiles } from "../typescript/file"
 import { parseQuery } from "./parse-query"
@@ -58,7 +63,15 @@ export function parseSourceFile(sourceFile: SourceFile) {
       const importSpecifier = getReferencedNamedImport(callee, "defineTable")
       if (!importSpecifier) return
 
-      tableSchemas.push(parseTableDefinition(path, sourceFile))
+      try {
+        tableSchemas.push(parseTableDefinition(path, sourceFile))
+      } catch (error) {
+        if (isDiagnostic(error)) {
+          reportDiagnostic(error)
+        } else {
+          throw error
+        }
+      }
     },
     TaggedTemplateExpression(path) {
       const tag = path.get("tag")
@@ -67,8 +80,16 @@ export function parseSourceFile(sourceFile: SourceFile) {
       const importSpecifier = getReferencedNamedImport(tag, "sql")
       if (!importSpecifier) return
 
-      const query = parseQuery(path.get("quasi"), sourceFile)
-      queries.push(createQueryInvocation(query, path, sourceFile))
+      try {
+        const query = parseQuery(path.get("quasi"), sourceFile)
+        queries.push(createQueryInvocation(query, path, sourceFile))
+      } catch (error) {
+        if (isDiagnostic(error)) {
+          reportDiagnostic(error)
+        } else {
+          throw error
+        }
+      }
     }
   })
 
