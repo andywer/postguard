@@ -2,7 +2,7 @@ import { NodePath } from "@babel/traverse"
 import * as types from "@babel/types"
 import * as ts from "typescript"
 import { getReferencedNamedImport } from "./babel-imports"
-import * as format from "../format"
+import { createSourceFileDiagnostic, reportDiagnostic, DiagnosticType } from "../diagnostics"
 import { parsePostgresQuery, spreadTypeAny } from "../postgres/parse-pg-query"
 import { Query, QuerySourceMapSpan, SourceFile } from "../types"
 import { resolveTypeOfBabelPath } from "../typescript/file"
@@ -29,7 +29,8 @@ function isSpreadCallExpression(
 function resolveSpreadArgumentType(
   expression: NodePath<types.CallExpression>,
   tsProgram: ts.Program,
-  tsSource: ts.SourceFile
+  tsSource: ts.SourceFile,
+  sourceFile: SourceFile
 ) {
   const callee = expression.get("callee") as NodePath<types.Identifier>
   const args = expression.get("arguments")
@@ -41,7 +42,7 @@ function resolveSpreadArgumentType(
   const spreadArg = args[0]
   if (!spreadArg.node.start || !spreadArg.node.end) return null
 
-  return resolveTypeOfBabelPath(spreadArg.node, tsProgram, tsSource)
+  return resolveTypeOfBabelPath(spreadArg.node, tsProgram, tsSource, sourceFile)
 }
 
 function resolveSpreadExpressionType(expression: NodePath<types.Node>, sourceFile: SourceFile) {
@@ -54,7 +55,8 @@ function resolveSpreadExpressionType(expression: NodePath<types.Node>, sourceFil
     const spreadArgType = resolveSpreadArgumentType(
       expression,
       sourceFile.ts.program,
-      sourceFile.ts.sourceFile
+      sourceFile.ts.sourceFile,
+      sourceFile
     )
 
     const spreadType = spreadArgType
@@ -113,13 +115,9 @@ export function parseQuery(path: NodePath<types.TemplateLiteral>, sourceFile: So
     expressionSpreadTypes[paramNumber] = resolveSpreadExpressionType(expression, sourceFile)
 
     if (expressionSpreadTypes[paramNumber] === spreadTypeAny && sourceFile.ts) {
-      const lineHint = path.node.loc ? `:${path.node.loc.start.line}` : ``
-      console.warn(
-        format.warning(
-          `Warning: Cannot infer properties of spread expression in SQL template at ${
-            sourceFile.filePath
-          }${lineHint}`
-        )
+      const message = `Cannot infer properties of spread expression in SQL template.`
+      reportDiagnostic(
+        createSourceFileDiagnostic(DiagnosticType.warning, message, sourceFile, expression.node.loc)
       )
     }
 

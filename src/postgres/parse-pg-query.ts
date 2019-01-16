@@ -1,5 +1,5 @@
 import * as QueryParser from "pg-query-parser"
-import { augmentFileValidationError, augmentQuerySyntaxError } from "../errors"
+import { createQueryDiagnostic, reportDiagnostic, DiagnosticType } from "../diagnostics"
 import { ColumnReference, Query, SourceFile, TableReference, QuerySourceMapSpan } from "../types"
 import { resolvePropertyTypes } from "../typescript/objectish"
 import { placeholderColumnName } from "../utils"
@@ -223,8 +223,11 @@ export function parsePostgresQuery(
   if (result.error) {
     const fakePath = createQueryNodePath({ SelectStmt: { op: 0 } }, [], "")
     const query = instantiateQuery(fakePath, context)
-    const error = new Error(`Syntax error in SQL query.\nSubstituted query: ${queryString.trim()}`)
-    throw augmentFileValidationError(augmentQuerySyntaxError(error, result.error, query), query)
+    const message = `Syntax error in SQL query.\nSubstituted query: ${queryString.trim()}`
+    reportDiagnostic(
+      createQueryDiagnostic(DiagnosticType.error, message, query, result.error.cursorPosition - 1)
+    )
+    return query
   }
 
   const parsedQuery = result.query[0]

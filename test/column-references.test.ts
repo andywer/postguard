@@ -1,5 +1,6 @@
 import test from "ava"
 import * as path from "path"
+import { throwDiagnostics } from "../src/diagnostics"
 import { loadSourceFile, parseSourceFile } from "../src/parser"
 import { UnqualifiedColumnReference } from "../src/types"
 import { validateQuery } from "../src/validation"
@@ -67,7 +68,9 @@ test("fails on missing column values for INSERT", t => {
   const { queries, tableSchemas } = parseSourceFile(
     loadSourceFile(pathToFixture("insert-value-missing.ts"))
   )
-  const error = t.throws(() => queries.forEach(query => validateQuery(query, tableSchemas)))
+  const error = t.throws(() =>
+    throwDiagnostics(() => queries.forEach(query => validateQuery(query, tableSchemas)))
+  )
   t.is(error.name, "ValidationError")
   t.regex(error.message, containsToRegex(`Column "email" is missing from INSERT statement.`))
 })
@@ -76,7 +79,9 @@ test("fails on bad unqualified column reference", t => {
   const { queries, tableSchemas } = parseSourceFile(
     loadSourceFile(pathToFixture("column-reference-unqualified.ts"))
   )
-  const error = t.throws(() => queries.forEach(query => validateQuery(query, tableSchemas)))
+  const error = t.throws(() =>
+    throwDiagnostics(() => queries.forEach(query => validateQuery(query, tableSchemas)))
+  )
   t.is(error.name, "ValidationError")
   t.regex(error.message, containsToRegex(`No table in the query's scope has a column "password".`))
   t.regex(error.message, containsToRegex(`_fixtures/column-reference-unqualified.ts:11:15`))
@@ -86,7 +91,9 @@ test("fails on bad qualified column reference", t => {
   const { queries, tableSchemas } = parseSourceFile(
     loadSourceFile(pathToFixture("column-reference-qualified.ts"))
   )
-  const error = t.throws(() => queries.forEach(query => validateQuery(query, tableSchemas)))
+  const error = t.throws(() =>
+    throwDiagnostics(() => queries.forEach(query => validateQuery(query, tableSchemas)))
+  )
   t.is(error.name, "ValidationError")
   t.regex(error.message, containsToRegex(`Table "projects" does not have a column named "email".`))
   t.regex(error.message, containsToRegex(`_fixtures/column-reference-qualified.ts:16:23`))
@@ -94,7 +101,9 @@ test("fails on bad qualified column reference", t => {
 
 test("fails on bad column reference in INSERT", t => {
   const { queries, tableSchemas } = parseSourceFile(loadSourceFile(pathToFixture("insert.ts")))
-  const error = t.throws(() => queries.forEach(query => validateQuery(query, tableSchemas)))
+  const error = t.throws(() =>
+    throwDiagnostics(() => queries.forEach(query => validateQuery(query, tableSchemas)))
+  )
   t.is(error.name, "ValidationError")
   t.regex(error.message, containsToRegex(`No table in the query's scope has a column "foo".`))
   t.regex(error.message, containsToRegex(`_fixtures/insert.ts:13:31`))

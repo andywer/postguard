@@ -1,6 +1,6 @@
 import { parse, traverse } from "@babel/core"
 import * as fs from "fs"
-import { fail } from "../errors"
+import { createSourceFileDiagnostic, reportDiagnostic, DiagnosticType } from "../diagnostics"
 import { QueryInvocation, SourceFile, TableSchema } from "../types"
 import { compileFiles } from "../typescript/file"
 import { parseQuery } from "./parse-query"
@@ -8,18 +8,23 @@ import { getReferencedNamedImport } from "./babel-imports"
 import { createQueryInvocation } from "./parse-query-invocation"
 import { parseTableDefinition } from "./parse-table-definition"
 
-function compileTypeScript(filePath: string) {
+function compileTypeScript(filePath: string, fileContent: string) {
   try {
     return compileFiles([filePath])
   } catch (error) {
-    // tslint:disable-next-line no-console
-    console.error(`Compiling TypeScript source file ${filePath} failed: ${error.message}`)
+    const message = `Compiling TypeScript source file failed: ${error.message}`
+    const sourceFile: SourceFile = { fileContent, filePath }
+    reportDiagnostic(createSourceFileDiagnostic(DiagnosticType.warning, message, sourceFile, null))
   }
+}
+
+function fail(message: string): never {
+  throw new Error(message)
 }
 
 export function loadSourceFile(filePath: string): SourceFile {
   const fileContent = fs.readFileSync(filePath, "utf8")
-  const program = filePath.endsWith(".ts") ? compileTypeScript(filePath) : undefined
+  const program = filePath.endsWith(".ts") ? compileTypeScript(filePath, fileContent) : undefined
 
   return {
     fileContent,

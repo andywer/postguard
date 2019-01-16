@@ -5,11 +5,11 @@ import * as chokidar from "chokidar"
 import * as logSymbols from "log-symbols"
 import meow from "meow"
 import * as path from "path"
-import { isAugmentedError } from "./errors"
+import { collectDiagnostics, printDiagnostic, Diagnostic, DiagnosticType } from "./diagnostics"
 import * as format from "./format"
 import { loadSourceFile, parseSourceFile } from "./parser"
 import { QueryInvocation, TableSchema } from "./types"
-import { validateQuery } from "./validation"
+import { checkSchemasForDuplicates, validateQuery } from "./validation"
 
 const cli = meow(
   `
@@ -36,46 +36,40 @@ if (cli.input.length === 0) {
 
 const watchMode = Boolean(cli.flags.watch || cli.flags.w)
 
-function checkSchemasForDuplicates(allTableSchemas: TableSchema[]) {
-  for (const schema of allTableSchemas) {
-    const schemasMatchingThatName = allTableSchemas.filter(
-      someSchema => someSchema.tableName === schema.tableName
-    )
-    if (schemasMatchingThatName.length > 1) {
-      throw new Error(
-        `Table "${schema.tableName}" has been defined more than once:\n` +
-          schemasMatchingThatName
-            .map(duplicate => {
-              const lineRef = duplicate.loc ? `:${duplicate.loc.start.line}` : ``
-              return `  - ${duplicate.sourceFile.filePath}${lineRef}`
-            })
-            .join("\n")
-      )
-    }
-  }
-}
-
 function run(sourceFilePaths: string[], moreSchemas: TableSchema[] = []) {
   let allQueries: QueryInvocation[] = []
   let allTableSchemas: TableSchema[] = [...moreSchemas]
 
   sourceFilePaths = sourceFilePaths.map(filePath => path.relative(process.cwd(), filePath))
 
-  try {
-    for (const filePath of sourceFilePaths) {
+  let diagnostics: Diagnostic[] = []
+
+  for (const filePath of sourceFilePaths) {
+    const fileDiagnostics = collectDiagnostics(() => {
       const { queries, tableSchemas } = parseSourceFile(loadSourceFile(filePath))
-      // TODO: Check that no table is defined twice
 
       allQueries = [...allQueries, ...queries]
       allTableSchemas = [...allTableSchemas, ...tableSchemas]
-    }
+    })
 
+    fileDiagnostics.forEach(printDiagnostic)
+    diagnostics = [...diagnostics, ...fileDiagnostics]
+  }
+
+  const validationDiagnostics = collectDiagnostics(() => {
     checkSchemasForDuplicates(allTableSchemas)
 
     for (const query of allQueries) {
       validateQuery(query, allTableSchemas)
     }
+  })
 
+  validationDiagnostics.forEach(printDiagnostic)
+  diagnostics = [...diagnostics, ...validationDiagnostics]
+
+  if (diagnostics.some(diagnostic => diagnostic.type === DiagnosticType.error)) {
+    if (!watchMode) process.exit(1)
+  } else {
     console.log(
       format.success(
         `${logSymbols.success} Validated ${allQueries.length} queries against ${
@@ -83,20 +77,10 @@ function run(sourceFilePaths: string[], moreSchemas: TableSchema[] = []) {
         } table schemas. All fine!`
       )
     )
-  } catch (error) {
-    if (isAugmentedError(error)) {
-      const [firstLine, ...lines] = String(error.message).split("\n")
-      const linesIndented = lines.map(line => (line.match(/^>?\s*\d*\s*\|/) ? line : `  ${line}`))
-      console.error(`${logSymbols.error} ${[firstLine, ...linesIndented].join("\n")}`)
-    } else {
-      console.error(error.stack)
-    }
-    if (!watchMode) {
-      process.exit(1)
-    }
   }
 
   return {
+    diagnostics,
     queries: allQueries,
     schemas: allTableSchemas
   }

@@ -1,6 +1,7 @@
 import * as types from "@babel/types"
 import ts from "typescript"
-import * as format from "../format"
+import { createSourceFileDiagnostic, reportDiagnostic, DiagnosticType } from "../diagnostics"
+import { SourceFile } from "../types"
 
 export function compileFiles(filePaths: string[]) {
   return ts.createProgram({
@@ -42,14 +43,15 @@ function getNodeAtPosition(
 export function resolveTypeOfBabelPath(
   babelNode: types.Node,
   program: ts.Program,
-  source: ts.SourceFile
+  source: ts.SourceFile,
+  sourceFile: SourceFile
 ) {
   if (!babelNode.start || !babelNode.end) {
-    console.warn(
-      format.warning(
-        `Warning: Could not match SQL template string expression node between Babel and TypeScript parser. Skipping type checking of this expression.\n` +
-          `  File: ${source.fileName}`
-      )
+    const message =
+      `Could not match SQL template string expression node between Babel and TypeScript parser. Skipping type checking of this expression.\n` +
+      `  File: ${source.fileName}`
+    reportDiagnostic(
+      createSourceFileDiagnostic(DiagnosticType.warning, message, sourceFile, babelNode.loc)
     )
     return null
   }
@@ -57,12 +59,11 @@ export function resolveTypeOfBabelPath(
   const node = getNodeAtPosition(source, babelNode.start, babelNode.end) as ts.Expression
 
   if (!node) {
-    console.warn(
-      format.warning(
-        `Warning: Could not match SQL template string expression node between Babel and TypeScript parser. Skipping type checking of this expression.\n` +
-          `  File: ${source.fileName}\n` +
-          `  Template expression: ${source.getText().substring(babelNode.start, babelNode.end)}`
-      )
+    const message =
+      `Could not match SQL template string expression node between Babel and TypeScript parser. Skipping type checking of this expression.\n` +
+      `  Template expression: ${source.getText().substring(babelNode.start, babelNode.end)}`
+    reportDiagnostic(
+      createSourceFileDiagnostic(DiagnosticType.warning, message, sourceFile, babelNode.loc)
     )
     return null
   }
@@ -71,12 +72,11 @@ export function resolveTypeOfBabelPath(
   const type = checker.getTypeAtLocation(node)
 
   if (!type) {
-    console.warn(
-      format.warning(
-        `Warning: Could not resolve TypeScript type for SQL template string expression. Skipping type checking of this expression.\n` +
-          `  File: ${source.fileName}\n` +
-          `  Template expression: ${source.getText().substring(babelNode.start, babelNode.end)}`
-      )
+    const message =
+      `Could not resolve TypeScript type for SQL template string expression. Skipping type checking of this expression.\n` +
+      `  Template expression: ${source.getText().substring(babelNode.start, babelNode.end)}`
+    reportDiagnostic(
+      createSourceFileDiagnostic(DiagnosticType.warning, message, sourceFile, babelNode.loc)
     )
     return null
   }

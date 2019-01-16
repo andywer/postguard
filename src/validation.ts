@@ -1,7 +1,12 @@
 import { NodePath } from "@babel/traverse"
 import * as types from "@babel/types"
 import { Schema, TableSchemaDescriptor } from "squid"
-import { augmentCodeError, augmentFileValidationError, augmentValidationError } from "./errors"
+import {
+  createQueryNodeDiagnostic,
+  createSourceFileDiagnostic,
+  reportDiagnostic,
+  DiagnosticType
+} from "./diagnostics"
 import { resolveColumnReferences, resolveUnqualifiedColumnRef } from "./resolver"
 import { getAllSubqueries } from "./utils"
 import {
@@ -48,7 +53,7 @@ function assertIntactTableRef(tableRef: TableReference, tables: TableSchema[]) {
   return tableSchema
 }
 
-function assertNoBrokenColumnRefs(query: Query, tables: TableSchema[]) {
+function checkForBrokenColumnRefs(query: Query, tables: TableSchema[]) {
   const referencedColumns = resolveColumnReferences(query, tables)
 
   for (const columnRef of referencedColumns) {
@@ -58,22 +63,26 @@ function assertNoBrokenColumnRefs(query: Query, tables: TableSchema[]) {
 
       assertIntactQualifiedColumnRef(qualifiedColumnRef, tables)
     } catch (error) {
-      throw augmentValidationError(error, columnRef.path, query)
+      reportDiagnostic(
+        createQueryNodeDiagnostic(DiagnosticType.error, error.message, columnRef.path, query)
+      )
     }
   }
 }
 
-function assertNoBrokenTableRefs(query: Query, tables: TableSchema[]) {
+function checkForBrokenTableRefs(query: Query, tables: TableSchema[]) {
   for (const tableRef of query.referencedTables) {
     try {
       assertIntactTableRef(tableRef, tables)
     } catch (error) {
-      throw augmentValidationError(error, tableRef.path, query)
+      reportDiagnostic(
+        createQueryNodeDiagnostic(DiagnosticType.error, error.message, tableRef.path, query)
+      )
     }
   }
 }
 
-function assertCompleteInsertValues(query: Query, tables: TableSchema[]) {
+function checkForIncompleteInsertValues(query: Query, tables: TableSchema[]) {
   // FIXME: Consider SELECT INTO queries as well
   if (query.type !== "INSERT") return
   if (query.referencedColumns.some(isUnresolvableColumnReference)) return
@@ -92,10 +101,8 @@ function assertCompleteInsertValues(query: Query, tables: TableSchema[]) {
     )
 
     if (!columnReference) {
-      const error = new Error(
-        `Column "${mandatoryColumn.columnName}" is missing from INSERT statement.`
-      )
-      throw augmentValidationError(error, query.path, query)
+      const message = `Column "${mandatoryColumn.columnName}" is missing from INSERT statement.`
+      reportDiagnostic(createQueryNodeDiagnostic(DiagnosticType.error, message, query.path, query))
     }
   }
 }
@@ -122,7 +129,7 @@ function resolveColumnRefsToTableSchemaDescriptor(
   return syntheticSchema
 }
 
-function validateQueryMatchesReturnType(
+function checkIfQueryMatchesReturnType(
   resultSchema: TableSchemaDescriptor,
   expectedResult: TableSchemaDescriptor,
   path: NodePath<types.Node>,
@@ -145,7 +152,14 @@ function validateQueryMatchesReturnType(
           .map(columnName => `"${columnName}"`)
           .join(", ")}`
     )
-    throw augmentCodeError(error, path, query)
+    reportDiagnostic(
+      createSourceFileDiagnostic(
+        DiagnosticType.error,
+        error.message,
+        query.sourceFile,
+        path.node.loc
+      )
+    )
   }
 
   // TODO: Validate result column types
@@ -165,14 +179,31 @@ function resolveSubqueryToTableSchema(
   }
 }
 
-function validateSubquery(query: Query, tables: TableSchema[]) {
-  try {
-    assertNoBrokenTableRefs(query, tables)
-    assertNoBrokenColumnRefs(query, tables)
-    assertCompleteInsertValues(query, tables)
-  } catch (error) {
-    throw augmentFileValidationError(error, query)
+export function checkSchemasForDuplicates(allTableSchemas: TableSchema[]) {
+  for (const schema of allTableSchemas) {
+    const schemasMatchingThatName = allTableSchemas.filter(
+      someSchema => someSchema.tableName === schema.tableName
+    )
+    if (schemasMatchingThatName.length > 1) {
+      const message =
+        `Table "${schema.tableName}" has been defined more than once:\n` +
+        schemasMatchingThatName
+          .map(duplicate => {
+            const lineRef = duplicate.loc ? `:${duplicate.loc.start.line}` : ``
+            return `  - ${duplicate.sourceFile.filePath}${lineRef}`
+          })
+          .join("\n")
+      reportDiagnostic(
+        createSourceFileDiagnostic(DiagnosticType.error, message, schema.sourceFile, schema.loc)
+      )
+    }
   }
+}
+
+function validateSubquery(query: Query, tables: TableSchema[]) {
+  checkForBrokenTableRefs(query, tables)
+  checkForBrokenColumnRefs(query, tables)
+  checkForIncompleteInsertValues(query, tables)
 
   for (const subquery of query.subqueries) {
     validateSubquery(subquery, tables)
@@ -180,28 +211,20 @@ function validateSubquery(query: Query, tables: TableSchema[]) {
 }
 
 function validateQueryInvocation(invocation: QueryInvocation, tables: TableSchema[]) {
-  if (
-    !invocation.resultTypeAssertion ||
-    invocation.query.returnedColumns.some(isUnresolvableColumnReference)
-  ) {
+  const { query, resultTypeAssertion } = invocation
+
+  if (!resultTypeAssertion || query.returnedColumns.some(isUnresolvableColumnReference)) {
     return
   }
 
-  try {
-    const resultTypeAssertion = invocation.resultTypeAssertion
-    const resultSchema = resolveColumnRefsToTableSchemaDescriptor(
-      invocation.query.returnedColumns,
-      tables
-    )
-    validateQueryMatchesReturnType(
-      resultSchema,
-      resultTypeAssertion.schema,
-      resultTypeAssertion.path,
-      invocation.query
-    )
-  } catch (error) {
-    throw augmentFileValidationError(error, invocation.query)
-  }
+  const resultSchema = resolveColumnRefsToTableSchemaDescriptor(query.returnedColumns, tables)
+
+  checkIfQueryMatchesReturnType(
+    resultSchema,
+    resultTypeAssertion.schema,
+    resultTypeAssertion.path,
+    query
+  )
 }
 
 export function validateQuery(invocation: QueryInvocation, tables: TableSchema[]) {
