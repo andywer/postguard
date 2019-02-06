@@ -13,6 +13,13 @@ test("valid result type on INSERT RETURNING query passes", t => {
   t.notThrows(() => queries.forEach(query => validateQuery(query, tableSchemas)))
 })
 
+test("valid result type on UPDATE RETURNING query passes", t => {
+  const { queries, tableSchemas } = parseSourceFile(
+    loadSourceFile(pathToFixture("update-spread.ts"))
+  )
+  t.notThrows(() => queries.forEach(query => validateQuery(query, tableSchemas)))
+})
+
 test("fails on INSERT RETURNING query not matching result type", t => {
   const { queries, tableSchemas } = parseSourceFile(
     loadSourceFile(pathToFixture("insert-returning-bad-result-type.ts"))
