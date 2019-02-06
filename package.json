@@ -1,6 +1,6 @@
 {
   "name": "postguard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Validate Postgres SQL queries in source code against your schema at build time.",
   "bin": "dist/cli.js",
   "scripts": {
