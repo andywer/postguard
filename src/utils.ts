@@ -1,5 +1,7 @@
 import { Query } from "./types"
 
+export const placeholderColumnName = "postguardPlaceholderColumnToBeIgnored"
+
 function flatMap<In, Out>(elements: In[], mapper: (element: In) => Out[]): Out[] {
   return elements.reduce((flattened, element) => [...flattened, ...mapper(element)], [] as Out[])
 }

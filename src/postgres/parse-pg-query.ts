@@ -2,6 +2,7 @@ import * as QueryParser from "pg-query-parser"
 import { augmentFileValidationError, augmentQuerySyntaxError } from "../errors"
 import { ColumnReference, Query, SourceFile, TableReference, QuerySourceMapSpan } from "../types"
 import { resolvePropertyTypes } from "../typescript/objectish"
+import { placeholderColumnName } from "../utils"
 import {
   createQueryNodePath,
   createQueryNodeSubpath,
@@ -111,14 +112,14 @@ function getReferencedColumns(
       const relationRefs = getTableReferences(statement, false)
       const columnRef = resolveColumnReference(path, relationRefs)
 
-      if (columnRef) {
+      if (columnRef && columnRef.columnName !== placeholderColumnName) {
         referencedColumns.push(columnRef)
       }
     } else if (isResTarget(path.node) && path.node.ResTarget.name) {
       const relationRefs = getTableReferences(statement, false)
       const columnRef = resolveResTarget(path, relationRefs)
 
-      if (columnRef) {
+      if (columnRef && columnRef.columnName !== placeholderColumnName) {
         referencedColumns.push(columnRef)
       }
     } else if (spreadType) {

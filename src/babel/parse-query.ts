@@ -7,6 +7,7 @@ import { parsePostgresQuery, spreadTypeAny } from "../postgres/parse-pg-query"
 import { Query, QuerySourceMapSpan, SourceFile } from "../types"
 import { resolveTypeOfBabelPath } from "../typescript/file"
 import { resolvePropertyTypes } from "../typescript/objectish"
+import { placeholderColumnName } from "../utils"
 
 interface ExpressionSpreadTypes {
   [paramID: number]: ReturnType<typeof resolvePropertyTypes>
@@ -14,7 +15,7 @@ interface ExpressionSpreadTypes {
 
 function isSpreadCallExpression(
   expression: NodePath<any>,
-  fnName: "spreadAnd" | "spreadInsert"
+  fnName: "spreadAnd" | "spreadInsert" | "spreadUpdate"
 ): expression is NodePath<types.CallExpression> {
   if (!expression.isCallExpression()) return false
 
@@ -46,7 +47,10 @@ function resolveSpreadArgumentType(
 function resolveSpreadExpressionType(expression: NodePath<types.Node>, sourceFile: SourceFile) {
   if (!sourceFile.ts) return spreadTypeAny
 
-  if (isSpreadCallExpression(expression, "spreadInsert")) {
+  if (
+    isSpreadCallExpression(expression, "spreadInsert") ||
+    isSpreadCallExpression(expression, "spreadUpdate")
+  ) {
     const spreadArgType = resolveSpreadArgumentType(
       expression,
       sourceFile.ts.program,
@@ -59,6 +63,16 @@ function resolveSpreadExpressionType(expression: NodePath<types.Node>, sourceFil
     return spreadType || spreadTypeAny
   } else {
     return null
+  }
+}
+
+function createExpressionPlaceholder(expression: NodePath<types.Expression>, paramNumber: number) {
+  if (isSpreadCallExpression(expression, "spreadInsert")) {
+    return `SELECT \$${paramNumber}`
+  } else if (isSpreadCallExpression(expression, "spreadUpdate")) {
+    return `"${placeholderColumnName}" = \$${paramNumber}`
+  } else {
+    return `\$${paramNumber}`
   }
 }
 
@@ -93,9 +107,7 @@ export function parseQuery(path: NodePath<types.TemplateLiteral>, sourceFile: So
     const expression = expressions[index]
     const paramNumber = index + 1
 
-    const placeholder = isSpreadCallExpression(expression, "spreadInsert")
-      ? `SELECT \$${paramNumber}`
-      : `\$${paramNumber}`
+    const placeholder = createExpressionPlaceholder(expression, paramNumber)
     templatedQueryString = addToQueryString(expression.node, placeholder, true)
 
     expressionSpreadTypes[paramNumber] = resolveSpreadExpressionType(expression, sourceFile)

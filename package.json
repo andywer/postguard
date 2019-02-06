@@ -25,7 +25,7 @@
     "log-symbols": "^2.2.0",
     "meow": "^5.0.0",
     "pg-query-parser": "^0.2.3",
-    "squid": "^0.3.0",
+    "squid": "^0.4.0",
     "typescript": "^3.2.2"
   },
   "devDependencies": {

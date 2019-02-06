@@ -7,8 +7,36 @@ import { containsToRegex } from "./_helpers/assert"
 
 const pathToFixture = (fileName: string) => path.join(__dirname, "_fixtures", fileName)
 
-test("can infer column references from spread expression", t => {
+test("can infer column references from spreadInsert() expression", t => {
   const { queries } = parseSourceFile(loadSourceFile(pathToFixture("insert-spread.ts")))
+  const referencedColumns = (queries[0].query
+    .referencedColumns as UnqualifiedColumnReference[]).map(colRef => ({
+    tableRefsInScope: colRef.tableRefsInScope
+      ? colRef.tableRefsInScope.map(tableRef => ({
+          tableName: tableRef.tableName,
+          as: tableRef.as
+        }))
+      : colRef.tableRefsInScope,
+    columnName: colRef.columnName
+  }))
+  t.deepEqual(referencedColumns, [
+    {
+      tableRefsInScope: [{ tableName: "users", as: undefined }],
+      columnName: "name"
+    },
+    {
+      tableRefsInScope: [{ tableName: "users", as: undefined }],
+      columnName: "email"
+    },
+    {
+      tableRefsInScope: [{ tableName: "users", as: undefined }],
+      columnName: "id"
+    }
+  ])
+})
+
+test("can infer column references from spreadUpdate() expression", t => {
+  const { queries } = parseSourceFile(loadSourceFile(pathToFixture("update-spread.ts")))
   const referencedColumns = (queries[0].query
     .referencedColumns as UnqualifiedColumnReference[]).map(colRef => ({
     tableRefsInScope: colRef.tableRefsInScope
