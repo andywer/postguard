@@ -27,7 +27,7 @@ function getColumnNameByKey(key: NodePath<types.Node>): string {
 
 function resolveCallExpression(
   call: NodePath<types.CallExpression>,
-  fn: ((...args: any[]) => any),
+  fn: (...args: any[]) => any,
   args: NodePath[]
 ): ColumnDescriptor | any {
   const resolvedArgs = args.map(arg => resolveColumnDescriptorExpression(arg))

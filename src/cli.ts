@@ -78,9 +78,7 @@ function run(sourceFilePaths: string[], moreSchemas: TableSchema[] = []) {
 
     console.log(
       format.success(
-        `${logSymbols.success} Validated ${allQueries.length} queries against ${
-          allTableSchemas.length
-        } table schemas. All fine!`
+        `${logSymbols.success} Validated ${allQueries.length} queries against ${allTableSchemas.length} table schemas. All fine!`
       )
     )
   } catch (error) {

@@ -101,7 +101,7 @@ export function parseQuery(path: NodePath<types.TemplateLiteral>, sourceFile: So
     return templatedQueryString + queryStringPartial
   }
 
-  templatedQueryString = addToQueryString(textPartials[0], textPartials[0].value.cooked)
+  templatedQueryString = addToQueryString(textPartials[0], textPartials[0].value.cooked || "")
 
   for (let index = 0; index < expressions.length; index++) {
     const expression = expressions[index]
@@ -116,9 +116,7 @@ export function parseQuery(path: NodePath<types.TemplateLiteral>, sourceFile: So
       const lineHint = path.node.loc ? `:${path.node.loc.start.line}` : ``
       console.warn(
         format.warning(
-          `Warning: Cannot infer properties of spread expression in SQL template at ${
-            sourceFile.filePath
-          }${lineHint}`
+          `Warning: Cannot infer properties of spread expression in SQL template at ${sourceFile.filePath}${lineHint}`
         )
       )
     }
@@ -126,7 +124,7 @@ export function parseQuery(path: NodePath<types.TemplateLiteral>, sourceFile: So
     if (textPartials[index + 1]) {
       templatedQueryString = addToQueryString(
         textPartials[index + 1],
-        textPartials[index + 1].value.cooked
+        textPartials[index + 1].value.cooked || ""
       )
     }
   }
